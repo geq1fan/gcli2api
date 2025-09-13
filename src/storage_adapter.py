@@ -4,8 +4,7 @@
 """
 import asyncio
 import os
-import orjson
-import json as std_json
+import json
 from typing import Dict, Any, List, Optional, Protocol
 
 from log import log
@@ -263,7 +262,7 @@ class StorageAdapter:
         import aiofiles
         try:
             async with aiofiles.open(output_path, "w", encoding="utf-8") as f:
-                await f.write(std_json.dumps(credential_data, indent=2, ensure_ascii=False))
+                await f.write(json.dumps(credential_data, indent=2, ensure_ascii=False))
             return True
         except Exception:
             return False
@@ -279,7 +278,7 @@ class StorageAdapter:
             async with aiofiles.open(json_path, "r", encoding="utf-8") as f:
                 content = await f.read()
             
-            credential_data = orjson.loads(content)
+            credential_data = json.loads(content)
             
             if filename is None:
                 filename = os.path.basename(json_path)

@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 
 from config import get_oauth_proxy_url, get_googleapis_proxy_url, get_resource_manager_api_url, get_service_usage_api_url
 from log import log
-from .httpx_client import http_client
+from .httpx_client import get_async, post_async
 
 
 class TokenError(Exception):
@@ -71,14 +71,12 @@ class Credentials:
             try:
                 oauth_base_url = await get_oauth_proxy_url()
                 token_url = f"{oauth_base_url.rstrip('/')}/token"
-
-                async with http_client.get_client() as client:
-                    response = await client.post(
-                        token_url,
-                        data=data,
-                        headers={'Content-Type': 'application/x-www-form-urlencoded'}
-                    )
-                    response.raise_for_status()
+                response = await post_async(
+                    token_url,
+                    data=data,
+                    headers={'Content-Type': 'application/x-www-form-urlencoded'}
+                )
+                response.raise_for_status()
                 
                 token_data = response.json()
                 self.access_token = token_data['access_token']
@@ -224,18 +222,16 @@ class Flow:
             'code': code,
             'grant_type': 'authorization_code'
         }
-
+        
         try:
             oauth_base_url = await get_oauth_proxy_url()
             token_url = f"{oauth_base_url.rstrip('/')}/token"
-
-            async with http_client.get_client() as client:
-                response = await client.post(
-                    token_url,
-                    data=data,
-                    headers={'Content-Type': 'application/x-www-form-urlencoded'}
-                )
-                response.raise_for_status()
+            response = await post_async(
+                token_url,
+                data=data,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            response.raise_for_status()
             
             token_data = response.json()
             
@@ -356,12 +352,10 @@ async def get_user_info(credentials: Credentials) -> Optional[Dict[str, Any]]:
     try:
         googleapis_base_url = await get_googleapis_proxy_url()
         userinfo_url = f"{googleapis_base_url.rstrip('/')}/oauth2/v2/userinfo"
-
-        async with http_client.get_client() as client:
-            response = await client.get(
-                userinfo_url,
-                headers={'Authorization': f'Bearer {credentials.access_token}'}
-            )
+        response = await get_async(
+            userinfo_url,
+            headers={'Authorization': f'Bearer {credentials.access_token}'}
+        )
         response.raise_for_status()
         return response.json()
     except Exception as e:
@@ -416,9 +410,8 @@ async def validate_token(token: str) -> Optional[Dict[str, Any]]:
     try:
         oauth_base_url = await get_oauth_proxy_url()
         tokeninfo_url = f"{oauth_base_url.rstrip('/')}/tokeninfo?access_token={token}"
-
-        async with http_client.get_client() as client:
-            response = await client.get(tokeninfo_url)
+        
+        response = await get_async(tokeninfo_url)
         response.raise_for_status()
         return response.json()
     except Exception as e:
@@ -452,8 +445,7 @@ async def enable_required_apis(credentials: Credentials, project_id: str) -> boo
             service_usage_base_url = await get_service_usage_api_url()
             check_url = f"{service_usage_base_url.rstrip('/')}/v1/projects/{project_id}/services/{service}"
             try:
-                async with http_client.get_client() as client:
-                    check_response = await client.get(check_url, headers=headers)
+                check_response = await get_async(check_url, headers=headers)
                 if check_response.status_code == 200:
                     service_data = check_response.json()
                     if service_data.get("state") == "ENABLED":
@@ -465,8 +457,7 @@ async def enable_required_apis(credentials: Credentials, project_id: str) -> boo
             # 启用服务
             enable_url = f"{service_usage_base_url.rstrip('/')}/v1/projects/{project_id}/services/{service}:enable"
             try:
-                async with http_client.get_client() as client:
-                    enable_response = await client.post(enable_url, headers=headers, json={})
+                enable_response = await post_async(enable_url, headers=headers, json={})
                 
                 if enable_response.status_code in [200, 201]:
                     log.info(f"✅ 成功启用服务: {service}")
@@ -505,8 +496,7 @@ async def get_user_projects(credentials: Credentials) -> List[Dict[str, Any]]:
         resource_manager_base_url = await get_resource_manager_api_url()
         url = f"{resource_manager_base_url.rstrip('/')}/v1/projects"
         log.info(f"正在调用API: {url}")
-        async with http_client.get_client() as client:
-            response = await client.get(url, headers=headers)
+        response = await get_async(url, headers=headers)
         
         log.info(f"API响应状态码: {response.status_code}")
         if response.status_code != 200:

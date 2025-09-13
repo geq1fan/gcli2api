@@ -36,10 +36,6 @@ class CredentialManager:
         self._current_credential_data: Optional[Dict[str, Any]] = None
         self._current_credential_state: Dict[str, Any] = {}
         
-        # 凭证内存池
-        self._credential_pool: Dict[str, Dict[str, Any]] = {}  # 存储凭证完整信息的内存池
-        self._pool_lock = asyncio.Lock()  # 内存池并发访问锁
-        
         # 并发控制
         self._state_lock = asyncio.Lock()
         self._operation_lock = asyncio.Lock()
@@ -126,100 +122,68 @@ class CredentialManager:
     async def _discover_credentials(self):
         """发现和加载所有可用凭证"""
         try:
-            # 获取内存池锁
-            async with self._pool_lock:
-                # 从存储适配器获取所有凭证
-                all_credentials = await self._storage_adapter.list_credentials()
-                
-                # 过滤出可用的凭证（排除被禁用的）- 批量读取状态以提升性能
-                available_credentials = []
-                
-                # 批量获取所有凭证状态，避免多次读取状态文件
-                if all_credentials:
-                    try:
-                        all_states = await self._storage_adapter.get_all_credential_states()
+            # 从存储适配器获取所有凭证
+            all_credentials = await self._storage_adapter.list_credentials()
+            
+            # 过滤出可用的凭证（排除被禁用的）- 批量读取状态以提升性能
+            available_credentials = []
+            
+            # 批量获取所有凭证状态，避免多次读取状态文件
+            if all_credentials:
+                try:
+                    all_states = await self._storage_adapter.get_all_credential_states()
+                    
+                    for credential_name in all_credentials:
+                        normalized_name = credential_name
+                        # 标准化文件名以匹配状态数据中的键
+                        if hasattr(self._storage_adapter._backend, '_normalize_filename'):
+                            normalized_name = self._storage_adapter._backend._normalize_filename(credential_name)
                         
-                        # 批量获取所有凭证数据
-                        all_credential_data = {}
-                        for credential_name in all_credentials:
-                            try:
-                                credential_data = await self._storage_adapter.get_credential(credential_name)
-                                if credential_data:
-                                    all_credential_data[credential_name] = credential_data
-                            except Exception as e:
-                                log.warning(f"Failed to load credential data for {credential_name}: {e}")
-                        
-                        # 更新内存池
-                        self._credential_pool.clear()
-                        
-                        for credential_name in all_credentials:
-                            normalized_name = credential_name
-                            # 标准化文件名以匹配状态数据中的键
-                            if hasattr(self._storage_adapter._backend, '_normalize_filename'):
-                                normalized_name = self._storage_adapter._backend._normalize_filename(credential_name)
-                            
-                            state = all_states.get(normalized_name, {})
-                            credential_data = all_credential_data.get(credential_name)
-                            
-                            if not state.get("disabled", False) and credential_data:
+                        state = all_states.get(normalized_name, {})
+                        if not state.get("disabled", False):
+                            available_credentials.append(credential_name)
+                except Exception as e:
+                    log.warning(f"Failed to batch load credential states, falling back to individual checks: {e}")
+                    # 如果批量读取失败，回退到逐个检查
+                    for credential_name in all_credentials:
+                        try:
+                            state = await self._storage_adapter.get_credential_state(credential_name)
+                            if not state.get("disabled", False):
                                 available_credentials.append(credential_name)
-                                # 将凭证数据、状态存储到内存池
-                                self._credential_pool[credential_name] = {
-                                    "data": credential_data,
-                                    "state": state,
-                                    "stats": {}  # 可以添加统计信息
-                                }
-                    except Exception as e:
-                        log.warning(f"Failed to batch load credential states, falling back to individual checks: {e}")
-                        # 如果批量读取失败，回退到逐个检查
-                        self._credential_pool.clear()
-                        for credential_name in all_credentials:
-                            try:
-                                state = await self._storage_adapter.get_credential_state(credential_name)
-                                credential_data = await self._storage_adapter.get_credential(credential_name)
-                                
-                                if not state.get("disabled", False) and credential_data:
-                                    available_credentials.append(credential_name)
-                                    # 将凭证数据、状态存储到内存池
-                                    self._credential_pool[credential_name] = {
-                                        "data": credential_data,
-                                        "state": state,
-                                        "stats": {}  # 可以添加统计信息
-                                    }
-                            except Exception as e2:
-                                log.warning(f"Failed to check state for credential {credential_name}: {e2}")
+                        except Exception as e2:
+                            log.warning(f"Failed to check state for credential {credential_name}: {e2}")
+            
+            # 更新凭证列表
+            old_credentials = set(self._credential_files)
+            new_credentials = set(available_credentials)
+            
+            if old_credentials != new_credentials:
+                # 记录变化（只在非初始状态时记录）
+                is_initial_load = len(old_credentials) == 0
+                added = new_credentials - old_credentials
+                removed = old_credentials - new_credentials
                 
-                # 更新凭证列表
-                old_credentials = set(self._credential_files)
-                new_credentials = set(available_credentials)
+                self._credential_files = available_credentials
                 
-                if old_credentials != new_credentials:
-                    # 记录变化（只在非初始状态时记录）
-                    is_initial_load = len(old_credentials) == 0
-                    added = new_credentials - old_credentials
-                    removed = old_credentials - new_credentials
-                    
-                    self._credential_files = available_credentials
-                    
-                    # 初始加载时只记录调试信息，运行时变化才记录INFO
-                    if not is_initial_load:
-                        if added:
-                            log.info(f"发现新的可用凭证: {list(added)}")
-                        if removed:
-                            log.info(f"移除不可用凭证: {list(removed)}")
-                    else:
-                        # 初始加载时只记录调试信息
-                        if available_credentials:
-                            log.debug(f"初始加载发现 {len(available_credentials)} 个可用凭证")
-                    
-                    # 重置当前索引如果需要
-                    if self._current_credential_index >= len(self._credential_files):
-                        self._current_credential_index = 0
-                
-                if not self._credential_files:
-                    log.warning("No available credential files found")
+                # 初始加载时只记录调试信息，运行时变化才记录INFO
+                if not is_initial_load:
+                    if added:
+                        log.info(f"发现新的可用凭证: {list(added)}")
+                    if removed:
+                        log.info(f"移除不可用凭证: {list(removed)}")
                 else:
-                    log.debug(f"Available credentials: {len(self._credential_files)} files")
+                    # 初始加载时只记录调试信息
+                    if available_credentials:
+                        log.debug(f"初始加载发现 {len(available_credentials)} 个可用凭证")
+                
+                # 重置当前索引如果需要
+                if self._current_credential_index >= len(self._credential_files):
+                    self._current_credential_index = 0
+            
+            if not self._credential_files:
+                log.warning("No available credential files found")
+            else:
+                log.debug(f"Available credentials: {len(self._credential_files)} files")
                 
         except Exception as e:
             log.error(f"Failed to discover credentials: {e}")
@@ -232,30 +196,11 @@ class CredentialManager:
         try:
             current_file = self._credential_files[self._current_credential_index]
             
-            # 从内存池获取凭证数据
-            async with self._pool_lock:
-                pool_entry = self._credential_pool.get(current_file)
-                if not pool_entry:
-                    log.warning(f"凭证 {current_file} 不在内存池中")
-                    # 如果内存池中没有，从存储适配器加载
-                    credential_data = await self._storage_adapter.get_credential(current_file)
-                    if not credential_data:
-                        log.error(f"Failed to load credential data for: {current_file}")
-                        return None
-                    
-                    # 加载状态信息
-                    state_data = await self._storage_adapter.get_credential_state(current_file)
-                    
-                    # 存储到内存池
-                    self._credential_pool[current_file] = {
-                        "data": credential_data,
-                        "state": state_data,
-                        "stats": {}
-                    }
-                    pool_entry = self._credential_pool[current_file]
-                else:
-                    credential_data = pool_entry["data"]
-                    state_data = pool_entry["state"]
+            # 从存储适配器加载凭证数据
+            credential_data = await self._storage_adapter.get_credential(current_file)
+            if not credential_data:
+                log.error(f"Failed to load credential data for: {current_file}")
+                return None
             
             # 检查refresh_token
             if "refresh_token" not in credential_data or not credential_data["refresh_token"]:
@@ -266,10 +211,6 @@ class CredentialManager:
             if 'type' not in credential_data and all(key in credential_data for key in ['client_id', 'refresh_token']):
                 credential_data['type'] = 'authorized_user'
                 log.debug(f"Auto-added 'type' field to credential from file {current_file}")
-                # 更新内存池
-                async with self._pool_lock:
-                    if current_file in self._credential_pool:
-                        self._credential_pool[current_file]["data"] = credential_data
             
             # 兼容不同的token字段格式
             if "access_token" in credential_data and "token" not in credential_data:
@@ -286,13 +227,12 @@ class CredentialManager:
                 if refreshed_data:
                     credential_data = refreshed_data
                     log.debug(f"Token刷新成功: {current_file}")
-                    # 更新内存池中的凭证数据
-                    async with self._pool_lock:
-                        if current_file in self._credential_pool:
-                            self._credential_pool[current_file]["data"] = credential_data
                 else:
                     log.error(f"Token刷新失败: {current_file}")
                     return None
+            
+            # 加载状态信息
+            state_data = await self._storage_adapter.get_credential_state(current_file)
             
             # 缓存当前凭证信息
             self._current_credential_file = current_file
@@ -308,11 +248,7 @@ class CredentialManager:
     async def get_valid_credential(self) -> Optional[Tuple[str, Dict[str, Any]]]:
         """获取有效的凭证，自动处理轮换和失效凭证切换"""
         async with self._operation_lock:
-            # 检查内存池是否为空，如果为空则重新发现凭证
-            async with self._pool_lock:
-                pool_empty = len(self._credential_pool) == 0
-            
-            if not self._credential_files or pool_empty:
+            if not self._credential_files:
                 await self._discover_credentials()
                 if not self._credential_files:
                     return None
@@ -397,13 +333,6 @@ class CredentialManager:
         try:
             # 直接通过存储适配器更新状态
             success = await self._storage_adapter.update_credential_state(credential_name, state_updates)
-            
-            # 更新内存池中的状态
-            async with self._pool_lock:
-                if credential_name in self._credential_pool:
-                    if "state" not in self._credential_pool[credential_name]:
-                        self._credential_pool[credential_name]["state"] = {}
-                    self._credential_pool[credential_name]["state"].update(state_updates)
             
             # 如果是当前使用的凭证，更新缓存
             if credential_name == self._current_credential_file:
@@ -493,16 +422,7 @@ class CredentialManager:
                 state_updates["error_codes"] = []
             elif error_code:
                 # 记录错误码
-                # 从内存池获取当前状态，如果内存池中没有则从存储适配器获取
-                current_state = {}
-                async with self._pool_lock:
-                    if credential_name in self._credential_pool:
-                        current_state = self._credential_pool[credential_name].get("state", {})
-                
-                # 如果内存池中没有状态，则从存储适配器获取
-                if not current_state:
-                    current_state = await self._storage_adapter.get_credential_state(credential_name)
-                
+                current_state = await self._storage_adapter.get_credential_state(credential_name)
                 error_codes = current_state.get("error_codes", [])
                 
                 if error_code not in error_codes:
