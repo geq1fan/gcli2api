@@ -3,67 +3,58 @@ Global task lifecycle management module
 管理应用程序中所有异步任务的生命周期，确保正确清理
 """
 import asyncio
-from typing import Set, Dict, Any, Optional, Callable
+import weakref
+from typing import Set, Dict, Any
 from log import log
 
 
 class TaskManager:
-    """全局异步任务管理器 - 支持并发控制"""
+    """全局异步任务管理器 - 单例模式"""
     
     _instance = None
     _lock = asyncio.Lock()
     
-    def __new__(cls, max_concurrent_tasks: int = 10):
+    def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
     
-    def __init__(self, max_concurrent_tasks: int = 10):
+    def __init__(self):
         if self._initialized:
             return
         
-        self._max_concurrent_tasks = max_concurrent_tasks
-        self._semaphore = asyncio.Semaphore(max_concurrent_tasks)
         self._tasks: Set[asyncio.Task] = set()
+        self._resources: Set[Any] = set()  # 需要关闭的资源
         self._shutdown_event = asyncio.Event()
         self._initialized = True
-        log.debug(f"TaskManager initialized with max_concurrent_tasks={max_concurrent_tasks}")
+        log.debug("TaskManager initialized")
     
-    def _task_done_callback(self, task: asyncio.Task):
-        """任务完成回调"""
-        self._tasks.discard(task)
-        log.debug(f"Task {task.get_name() or 'unnamed'} finished")
-    
-    async def _run_with_semaphore(self, coro, task_name: str = None):
-        """使用信号量运行协程"""
-        async with self._semaphore:
-            log.debug(f"Acquired semaphore for task: {task_name or 'unnamed'}")
-            try:
-                return await coro
-            finally:
-                log.debug(f"Released semaphore for task: {task_name or 'unnamed'}")
-    
-    def create_managed_task(self, coro, name: str = None) -> asyncio.Task:
-        """创建一个受管理的异步任务，支持并发控制"""
-        if self.is_shutdown:
-            raise RuntimeError("TaskManager is shutdown, cannot create new tasks")
-        
-        # 创建包装协程，用于信号量控制
-        wrapped_coro = self._run_with_semaphore(coro, name)
-        
-        # 创建任务
-        task = asyncio.create_task(wrapped_coro, name=name)
-        task.add_done_callback(self._task_done_callback)
-        
-        # 添加到任务集合
+    def register_task(self, task: asyncio.Task, description: str = None) -> asyncio.Task:
+        """注册一个任务供生命周期管理"""
         self._tasks.add(task)
+        task.add_done_callback(lambda t: self._tasks.discard(t))
         
-        log.debug(f"Created managed task: {name or 'unnamed'}")
+        if description:
+            task.set_name(description)
+        
+        log.debug(f"Registered task: {task.get_name() or 'unnamed'}")
         return task
     
+    def create_task(self, coro, *, name: str = None) -> asyncio.Task:
+        """创建并注册一个任务"""
+        task = asyncio.create_task(coro, name=name)
+        return self.register_task(task, name)
+    
+    def register_resource(self, resource: Any) -> Any:
+        """注册一个需要清理的资源（如HTTP客户端、文件句柄等）"""
+        # 使用弱引用避免循环引用
+        self._resources.add(weakref.ref(resource))
+        log.debug(f"Registered resource: {type(resource).__name__}")
+        return resource
+    
     async def shutdown(self, timeout: float = 30.0):
-        """关闭所有任务"""
+        """关闭所有任务和资源"""
         log.info("TaskManager shutdown initiated")
         
         # 设置关闭标志
@@ -89,7 +80,28 @@ class TaskManager:
             except asyncio.TimeoutError:
                 log.warning(f"Some tasks did not complete within {timeout}s timeout")
         
+        # 清理资源
+        cleaned_resources = 0
+        for resource_ref in list(self._resources):
+            resource = resource_ref()
+            if resource is not None:
+                try:
+                    if hasattr(resource, 'close'):
+                        if asyncio.iscoroutinefunction(resource.close):
+                            await resource.close()
+                        else:
+                            resource.close()
+                    elif hasattr(resource, 'aclose'):
+                        await resource.aclose()
+                    cleaned_resources += 1
+                except Exception as e:
+                    log.warning(f"Failed to close resource {type(resource).__name__}: {e}")
+        
+        if cleaned_resources > 0:
+            log.info(f"Cleaned up {cleaned_resources} resources")
+        
         self._tasks.clear()
+        self._resources.clear()
         log.info("TaskManager shutdown completed")
     
     @property
@@ -101,8 +113,7 @@ class TaskManager:
         """获取任务管理统计信息"""
         return {
             'active_tasks': len(self._tasks),
-            'max_concurrent_tasks': self._max_concurrent_tasks,
-            'available_semaphore_slots': self._semaphore._value,  # 注意：这是内部属性，仅用于调试
+            'registered_resources': len(self._resources),
             'is_shutdown': self.is_shutdown
         }
 
@@ -113,7 +124,12 @@ task_manager = TaskManager()
 
 def create_managed_task(coro, *, name: str = None) -> asyncio.Task:
     """创建一个被管理的异步任务的便捷函数"""
-    return task_manager.create_managed_task(coro, name=name)
+    return task_manager.create_task(coro, name=name)
+
+
+def register_resource(resource: Any) -> Any:
+    """注册资源的便捷函数"""
+    return task_manager.register_resource(resource)
 
 
 async def shutdown_all_tasks(timeout: float = 30.0):

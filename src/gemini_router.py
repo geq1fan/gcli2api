@@ -3,7 +3,7 @@ Gemini Router - Handles native Gemini format API requests
 处理原生Gemini格式请求的路由模块
 """
 import asyncio
-import orjson
+import json
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -205,11 +205,11 @@ async def generate_content(
     # 处理响应
     try:
         if hasattr(response, 'body'):
-            response_data = orjson.loads(response.body.decode() if isinstance(response.body, bytes) else response.body)
+            response_data = json.loads(response.body.decode() if isinstance(response.body, bytes) else response.body)
         elif hasattr(response, 'content'):
-            response_data = orjson.loads(response.content.decode() if isinstance(response.content, bytes) else response.content)
+            response_data = json.loads(response.content.decode() if isinstance(response.content, bytes) else response.content)
         else:
-            response_data = orjson.loads(str(response))
+            response_data = json.loads(str(response))
         
         return JSONResponse(content=response_data)
         
@@ -217,7 +217,7 @@ async def generate_content(
         log.error(f"Response processing failed: {e}")
         # 返回原始响应
         if hasattr(response, 'content'):
-            return JSONResponse(content=orjson.loads(response.content))
+            return JSONResponse(content=json.loads(response.content))
         else:
             raise HTTPException(status_code=500, detail="Response processing failed")
 
@@ -414,7 +414,7 @@ async def fake_stream_response_gemini(request_data: dict, model: str):
                         "code": 500
                     }
                 }
-                yield f"data: {orjson.dumps(error_chunk).decode('utf-8')}\n\n".encode()
+                yield f"data: {json.dumps(error_chunk)}\n\n".encode()
                 yield "data: [DONE]\n\n".encode()
                 return
             
@@ -433,7 +433,7 @@ async def fake_stream_response_gemini(request_data: dict, model: str):
                         "code": 500
                     }
                 }
-                yield f"data: {orjson.dumps(error_chunk).decode('utf-8')}\n\n".encode()
+                yield f"data: {json.dumps(error_chunk)}\n\n".encode()
                 yield "data: [DONE]\n\n".encode()
                 return
             
@@ -448,7 +448,7 @@ async def fake_stream_response_gemini(request_data: dict, model: str):
                     "index": 0
                 }]
             }
-            yield f"data: {orjson.dumps(heartbeat).decode('utf-8')}\n\n".encode()
+            yield f"data: {json.dumps(heartbeat)}\n\n".encode()
             
             # 异步发送实际请求
             async def get_response():
@@ -462,7 +462,7 @@ async def fake_stream_response_gemini(request_data: dict, model: str):
                 while not response_task.done():
                     await asyncio.sleep(3.0)
                     if not response_task.done():
-                        yield f"data: {orjson.dumps(heartbeat).decode('utf-8')}\n\n".encode()
+                        yield f"data: {json.dumps(heartbeat)}\n\n".encode()
                 
                 # 获取响应结果
                 response = await response_task
@@ -491,11 +491,11 @@ async def fake_stream_response_gemini(request_data: dict, model: str):
             # 处理结果
             try:
                 if hasattr(response, 'body'):
-                    response_data = orjson.loads(response.body.decode() if isinstance(response.body, bytes) else response.body)
+                    response_data = json.loads(response.body.decode() if isinstance(response.body, bytes) else response.body)
                 elif hasattr(response, 'content'):
-                    response_data = orjson.loads(response.content.decode() if isinstance(response.content, bytes) else response.content)
+                    response_data = json.loads(response.content.decode() if isinstance(response.content, bytes) else response.content)
                 else:
-                    response_data = orjson.loads(str(response))
+                    response_data = json.loads(str(response))
                 
                 log.debug(f"Gemini fake stream response data: {response_data}")
                 
@@ -529,7 +529,7 @@ async def fake_stream_response_gemini(request_data: dict, model: str):
                                     "index": 0
                                 }]
                             }
-                            yield f"data: {orjson.dumps(content_chunk).decode('utf-8')}\n\n".encode()
+                            yield f"data: {json.dumps(content_chunk)}\n\n".encode()
                         else:
                             log.warning(f"No content found in Gemini candidate: {candidate}")
                             # 提供默认回复
@@ -543,14 +543,14 @@ async def fake_stream_response_gemini(request_data: dict, model: str):
                                     "index": 0
                                 }]
                             }
-                            yield f"data: {orjson.dumps(error_chunk).decode('utf-8')}\n\n".encode()
+                            yield f"data: {json.dumps(error_chunk)}\n\n".encode()
                     else:
                         log.warning(f"No content/parts found in Gemini candidate: {candidate}")
                         # 返回原始响应
-                        yield f"data: {orjson.dumps(response_data).decode('utf-8')}\n\n".encode()
+                        yield f"data: {json.dumps(response_data)}\n\n".encode()
                 else:
                     log.warning(f"No candidates found in Gemini response: {response_data}")
-                    yield f"data: {orjson.dumps(response_data).decode('utf-8')}\n\n".encode()
+                    yield f"data: {json.dumps(response_data)}\n\n".encode()
                 
             except Exception as e:
                 log.error(f"Response parsing failed: {e}")
@@ -564,7 +564,7 @@ async def fake_stream_response_gemini(request_data: dict, model: str):
                         "index": 0
                     }]
                 }
-                yield f"data: {orjson.dumps(error_chunk).decode('utf-8')}\n\n".encode()
+                yield f"data: {json.dumps(error_chunk)}\n\n".encode()
             
             yield "data: [DONE]\n\n".encode()
                 
@@ -577,7 +577,7 @@ async def fake_stream_response_gemini(request_data: dict, model: str):
                     "code": 500
                 }
             }
-            yield f"data: {orjson.dumps(error_chunk).decode('utf-8')}\n\n".encode()
+            yield f"data: {json.dumps(error_chunk)}\n\n".encode()
             yield "data: [DONE]\n\n".encode()
 
     return StreamingResponse(gemini_stream_generator(), media_type="text/event-stream")

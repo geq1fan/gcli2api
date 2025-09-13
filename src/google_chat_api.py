@@ -5,8 +5,6 @@ This module is used by both OpenAI compatibility layer and native Gemini endpoin
 import asyncio
 import gc
 import json
-import orjson
-import json as std_json
 
 from fastapi import Response
 from fastapi.responses import StreamingResponse
@@ -33,13 +31,13 @@ from .utils import get_user_agent
 def _create_error_response(message: str, status_code: int = 500) -> Response:
     """Create standardized error response."""
     return Response(
-        content=orjson.dumps({
+        content=json.dumps({
             "error": {
                 "message": message,
                 "type": "api_error",
                 "code": status_code
             }
-        }).decode('utf-8'),
+        }),
         status_code=status_code,
         media_type="application/json"
     )
@@ -127,16 +125,18 @@ async def send_gemini_request(payload: dict, is_streaming: bool = False, credent
         return _create_error_response(str(e), 500)
 
     # 预序列化payload，避免重试时重复序列化
-    final_post_data = orjson.dumps(final_payload).decode('utf-8')
+    final_post_data = json.dumps(final_payload)
     
     # Debug日志：打印请求体结构
-    log.debug(f"Final request payload structure: {std_json.dumps(final_payload, ensure_ascii=False, indent=2)}")
+    log.debug(f"Final request payload structure: {json.dumps(final_payload, ensure_ascii=False, indent=2)}")
 
     for attempt in range(max_retries + 1):
         try:
             if is_streaming:
-                # 流式请求处理 - 复用全局HTTP连接池
-                async with http_client.get_client() as client:
+                # 流式请求处理 - 使用httpx_client模块的统一配置
+                client = await create_streaming_client_with_kwargs()
+                
+                try:
                     # 使用stream方法但不在async with块中消费数据
                     stream_ctx = client.stream("POST", target_url, content=final_post_data, headers=headers)
                     resp = await stream_ctx.__aenter__()
@@ -165,7 +165,7 @@ async def send_gemini_request(payload: dict, is_streaming: bool = False, credent
                             await stream_ctx.__aexit__(None, None, None)
                         except:
                             pass
-                        # client.aclose() 不再需要手动调用，由 async with 管理
+                        await client.aclose()
                         
                         # 如果重试可用且未达到最大次数，进行重试
                         if retry_429_enabled and attempt < max_retries:
@@ -178,9 +178,9 @@ async def send_gemini_request(payload: dict, is_streaming: bool = False, credent
                                 if new_credential_result:
                                     current_file, credential_data = new_credential_result
                                     headers, updated_payload = await _prepare_request_headers_and_payload(payload, credential_data)
-                                    final_post_data = orjson.dumps(updated_payload).decode('utf-8')
+                                    final_post_data = json.dumps(updated_payload)
                             await asyncio.sleep(retry_interval)
-                            continue # 跳出内层处理，继续外层循环重试
+                            continue  # 跳出内层处理，继续外层循环重试
                         else:
                             # 返回429错误流
                             async def error_stream():
@@ -191,7 +191,7 @@ async def send_gemini_request(payload: dict, is_streaming: bool = False, credent
                                         "code": 429
                                     }
                                 }
-                                yield f"data: {orjson.dumps(error_response).decode('utf-8')}\n\n"
+                                yield f"data: {json.dumps(error_response)}\n\n"
                             return StreamingResponse(error_stream(), media_type="text/event-stream", status_code=429)
                     elif resp.status_code != 200:
                         # 处理其他非200状态码的错误
@@ -218,7 +218,7 @@ async def send_gemini_request(payload: dict, is_streaming: bool = False, credent
                             await stream_ctx.__aexit__(None, None, None)
                         except:
                             pass
-                        # client.aclose() 不再需要手动调用，由 async with 管理
+                        await client.aclose()
                         
                         # 处理凭证轮换
                         await _handle_api_error(credential_manager, resp.status_code, response_content)
@@ -228,16 +228,24 @@ async def send_gemini_request(payload: dict, is_streaming: bool = False, credent
                             error_response = {
                                 "error": {
                                     "message": f"API error: {resp.status_code}",
-                                    "type": "api_error",
+                                    "type": "api_error", 
                                     "code": resp.status_code
                                 }
                             }
-                            yield f"data: {orjson.dumps(error_response).decode('utf-8')}\n\n"
+                            yield f"data: {json.dumps(error_response)}\n\n"
                         return StreamingResponse(error_stream(), media_type="text/event-stream", status_code=resp.status_code)
                     else:
                         # 成功响应，传递所有资源给流式处理函数管理
                         return _handle_streaming_response_managed(resp, stream_ctx, client, credential_manager, payload.get("model", ""), current_file)
                         
+                except Exception as e:
+                    # 清理资源
+                    try:
+                        await client.aclose()
+                    except:
+                        pass
+                    raise e
+
             else:
                 # 非流式请求处理 - 使用httpx_client模块
                 async with http_client.get_client(timeout=None) as client:
@@ -261,7 +269,7 @@ async def send_gemini_request(payload: dict, is_streaming: bool = False, credent
                                 if new_credential_result:
                                     current_file, credential_data = new_credential_result
                                     headers, updated_payload = await _prepare_request_headers_and_payload(payload, credential_data)
-                                    final_post_data = orjson.dumps(updated_payload).decode('utf-8')
+                                    final_post_data = json.dumps(updated_payload)
                             await asyncio.sleep(retry_interval)
                             continue
                         else:
@@ -295,7 +303,10 @@ def _handle_streaming_response_managed(resp, stream_ctx, client, credential_mana
                 await stream_ctx.__aexit__(None, None, None)
             except:
                 pass
-            # client.aclose() 不再需要手动调用，由 async with 管理
+            try:
+                await client.aclose()
+            except:
+                pass
             
             # 获取响应内容用于详细错误显示
             response_content = ""
@@ -332,7 +343,7 @@ def _handle_streaming_response_managed(resp, stream_ctx, client, credential_mana
                     "code": resp.status_code
                 }
             }
-            yield f'data: {orjson.dumps(error_response).decode('utf-8')}\n\n'.encode('utf-8')
+            yield f'data: {json.dumps(error_response)}\n\n'.encode('utf-8')
         
         return StreamingResponse(
             cleanup_and_error(),
@@ -381,14 +392,17 @@ def _handle_streaming_response_managed(resp, stream_ctx, client, credential_mana
         except Exception as e:
             log.error(f"Streaming error: {e}")
             err = {"error": {"message": str(e), "type": "api_error", "code": 500}}
-            yield f"data: {orjson.dumps(err).decode('utf-8')}\n\n".encode()
+            yield f"data: {json.dumps(err)}\n\n".encode()
         finally:
             # 确保清理所有资源
             try:
                 await stream_ctx.__aexit__(None, None, None)
             except Exception as e:
                 log.debug(f"Error closing stream context: {e}")
-            # client.aclose() 不再需要手动调用，由 async with 管理
+            try:
+                await client.aclose()
+            except Exception as e:
+                log.debug(f"Error closing client: {e}")
 
     return StreamingResponse(
         managed_stream_generator(),
@@ -412,12 +426,12 @@ async def _handle_non_streaming_response(resp, credential_manager: CredentialMan
             google_api_response = raw.decode('utf-8')
             if google_api_response.startswith('data: '):
                 google_api_response = google_api_response[len('data: '):]
-            google_api_response = orjson.loads(google_api_response)
-            log.debug(f"Google API原始响应: {std_json.dumps(google_api_response, ensure_ascii=False)[:500]}...")
+            google_api_response = json.loads(google_api_response)
+            log.debug(f"Google API原始响应: {json.dumps(google_api_response, ensure_ascii=False)[:500]}...")
             standard_gemini_response = google_api_response.get("response")
-            log.debug(f"提取的response字段: {std_json.dumps(standard_gemini_response, ensure_ascii=False)[:500]}...")
+            log.debug(f"提取的response字段: {json.dumps(standard_gemini_response, ensure_ascii=False)[:500]}...")
             return Response(
-                content=orjson.dumps(standard_gemini_response).decode('utf-8'),
+                content=json.dumps(standard_gemini_response),
                 status_code=200,
                 media_type="application/json; charset=utf-8"
             )

@@ -10,10 +10,8 @@ from typing import Dict, Any, List, Optional
 from collections import deque
 
 import motor.motor_asyncio
-import redis.asyncio as redis  # 导入 Redis 客户端
 from log import log
 from .cache_manager import UnifiedCacheManager, CacheBackend
-from .redis_manager import RedisCacheBackend  # 导入 Redis 缓存后端实现
 
 
 class MongoDBCacheBackend(CacheBackend):
@@ -39,22 +37,20 @@ class MongoDBCacheBackend(CacheBackend):
             return {}
     
     async def write_data(self, data: Dict[str, Any]) -> bool:
-        """将数据写入MongoDB文档（使用部分更新）"""
+        """将数据写入MongoDB文档"""
         try:
             collection = self._db[self._collection_name]
             
-            # 使用 $set 操作符进行部分更新，只更新 data 字段和 updated_at 字段
-            update_doc = {
-                "$set": {
-                    "data": data,
-                    "updated_at": datetime.now(timezone.utc)
-                }
+            doc = {
+                "key": self._doc_key,
+                "data": data,
+                "updated_at": datetime.now(timezone.utc)
             }
             
-            await collection.update_one(
+            await collection.replace_one(
                 {"key": self._doc_key},
-                update_doc,
-                upsert=True  # 如果文档不存在则插入
+                doc,
+                upsert=True
             )
             return True
             
@@ -75,14 +71,9 @@ class MongoDBManager:
         # 配置
         self._connection_uri = None
         self._database_name = None
-        self._redis_uri = None  # Redis URI for L2 cache
-        self._redis_db_index = 0  # Redis database index for L2 cache
         
         # 单文档设计 - 所有凭证存在一个文档中（类似TOML文件）
         self._collection_name = "credentials_data"
-        
-        # Redis 客户端用于 L2 缓存
-        self._redis_client_for_l2: Optional[redis.Redis] = None
         
         # 性能监控
         self._operation_count = 0
@@ -110,8 +101,6 @@ class MongoDBManager:
                 # 获取连接配置
                 self._connection_uri = os.getenv("MONGODB_URI")
                 self._database_name = os.getenv("MONGODB_DATABASE", "gcli2api")
-                self._redis_uri = os.getenv("REDIS_URI", "redis://localhost:6379")
-                self._redis_db_index = int(os.getenv("REDIS_DATABASE", "1"))  # 使用不同的数据库索引以避免冲突
                 
                 if not self._connection_uri:
                     raise ValueError("MONGODB_URI environment variable is required")
@@ -135,61 +124,22 @@ class MongoDBManager:
                 # 创建索引
                 await self._create_indexes()
                 
-                # 创建 Redis 客户端用于 L2 缓存
-                self._redis_client_for_l2 = None
-                try:
-                    # 建立 Redis 连接用于 L2 缓存
-                    # 检查是否需要 SSL
-                    if self._redis_uri.startswith("rediss://"):
-                        # SSL 连接
-                        self._redis_client_for_l2 = redis.from_url(
-                            self._redis_uri,
-                            db=self._redis_db_index,
-                            decode_responses=True,
-                            ssl_cert_reqs=None,
-                            ssl_check_hostname=False,
-                            ssl_ca_certs=None
-                        )
-                    else:
-                        # 普通连接
-                        self._redis_client_for_l2 = redis.from_url(
-                            self._redis_uri,
-                            db=self._redis_db_index,
-                            decode_responses=True
-                        )
-                    # 简单验证连接
-                    await self._redis_client_for_l2.ping()
-                    log.info(f"Redis L2 cache client connected to database {self._redis_db_index}")
-                except Exception as e:
-                    log.error(f"Failed to connect to Redis for L2 cache: {e}")
-                    self._redis_client_for_l2 = None
-                
                 # 创建缓存管理器
                 credentials_backend = MongoDBCacheBackend(self._db, self._collection_name, self._credentials_doc_key)
                 config_backend = MongoDBCacheBackend(self._db, self._collection_name, self._config_doc_key)
                 
-                # 为缓存管理器创建 L2 后端 (如果 Redis 客户端创建成功)
-                credentials_l2_backend = None
-                config_l2_backend = None
-                if self._redis_client_for_l2:
-                    # 使用不同的哈希表名称以避免键冲突
-                    credentials_l2_backend = RedisCacheBackend(self._redis_client_for_l2, f"{self._credentials_doc_key}_l2_cache")
-                    config_l2_backend = RedisCacheBackend(self._redis_client_for_l2, f"{self._config_doc_key}_l2_cache")
-                
                 self._credentials_cache_manager = UnifiedCacheManager(
-                    credentials_backend,  # L3 后端
+                    credentials_backend,
                     cache_ttl=self._cache_ttl,
                     write_delay=self._write_delay,
-                    name="credentials",
-                    l2_cache_backend=credentials_l2_backend  # L2 后端
+                    name="credentials"
                 )
                 
                 self._config_cache_manager = UnifiedCacheManager(
-                    config_backend,  # L3 后端
+                    config_backend,
                     cache_ttl=self._cache_ttl,
                     write_delay=self._write_delay,
-                    name="config",
-                    l2_cache_backend=config_l2_backend  # L2 后端
+                    name="config"
                 )
                 
                 # 启动缓存管理器
@@ -216,20 +166,12 @@ class MongoDBManager:
             log.error(f"Error creating MongoDB indexes: {e}")
     
     async def close(self):
-        """关闭MongoDB连接和Redis L2缓存连接"""
+        """关闭MongoDB连接"""
         # 停止缓存管理器
         if self._credentials_cache_manager:
             await self._credentials_cache_manager.stop()
         if self._config_cache_manager:
             await self._config_cache_manager.stop()
-        
-        # 关闭 Redis L2 缓存客户端
-        if self._redis_client_for_l2:
-            try:
-                await self._redis_client_for_l2.close()
-                log.info("Redis L2 cache client closed")
-            except Exception as e:
-                log.error(f"Error closing Redis L2 cache client: {e}")
         
         if self._client:
             self._client.close()

@@ -4,8 +4,7 @@
 """
 import asyncio
 import os
-import orjson
-import json as std_json
+import json
 import time
 from typing import Dict, Any, List, Optional
 
@@ -216,7 +215,7 @@ class FileStorageManager:
                     # 读取JSON凭证数据
                     async with aiofiles.open(filepath, "r", encoding="utf-8") as f:
                         json_content = await f.read()
-                    credential_data = orjson.loads(json_content)
+                    credential_data = json.loads(json_content)
                     
                     # 创建新的section：凭证数据 + 状态数据
                     section_data = credential_data.copy()
@@ -563,7 +562,7 @@ class FileStorageManager:
                 output_path = os.path.join(self._credentials_dir, f"{filename}.json")
             
             # 写入JSON文件
-            json_content = std_json.dumps(credential_data, indent=2, ensure_ascii=False)
+            json_content = json.dumps(credential_data, indent=2, ensure_ascii=False)
             async with aiofiles.open(output_path, "w", encoding="utf-8") as f:
                 await f.write(json_content)
             
@@ -587,7 +586,7 @@ class FileStorageManager:
             async with aiofiles.open(json_path, "r", encoding="utf-8") as f:
                 json_content = await f.read()
             
-            credential_data = orjson.loads(json_content)
+            credential_data = json.loads(json_content)
             
             if filename is None:
                 filename = os.path.basename(json_path)
