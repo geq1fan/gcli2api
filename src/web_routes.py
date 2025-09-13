@@ -25,6 +25,7 @@ import httpx
 
 import config
 from log import log
+from .httpx_client import http_client
 from .auth import (
     create_auth_url, get_auth_status,
     verify_password, generate_auth_token, verify_auth_token,
@@ -1735,5 +1736,66 @@ async def reset_usage_statistics(request: UsageResetRequest, token: str = Depend
         
     except Exception as e:
         log.error(f"重置使用统计失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 连接池监控端点
+@router.get("/pool/stats")
+async def get_connection_pool_stats(token: str = Depends(verify_token)):
+    """
+    获取HTTP连接池统计信息
+
+    Returns:
+        连接池的详细统计信息
+    """
+    try:
+        stats = http_client.get_stats()
+        return JSONResponse(content={
+            "success": True,
+            "data": stats
+        })
+
+    except Exception as e:
+        log.error(f"获取连接池统计失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/pool/health")
+async def get_connection_pool_health(token: str = Depends(verify_token)):
+    """
+    获取HTTP连接池健康状态
+
+    Returns:
+        连接池健康检查结果
+    """
+    try:
+        health = await http_client.health_check()
+        return JSONResponse(content={
+            "success": True,
+            "data": health
+        })
+
+    except Exception as e:
+        log.error(f"连接池健康检查失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pool/stats/reset")
+async def reset_connection_pool_stats(token: str = Depends(verify_token)):
+    """
+    重置HTTP连接池统计信息
+
+    Returns:
+        重置确认消息
+    """
+    try:
+        http_client.reset_stats()
+        return JSONResponse(content={
+            "success": True,
+            "message": "连接池统计信息已重置"
+        })
+
+    except Exception as e:
+        log.error(f"重置连接池统计失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
