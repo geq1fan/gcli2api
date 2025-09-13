@@ -6,7 +6,7 @@ Postgres数据库管理器，采用单行设计并兼容 UnifiedCacheManager。
 import asyncio
 import os
 import time
-import json
+import orjson
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from collections import deque
@@ -37,7 +37,7 @@ class PostgresCacheBackend(CacheBackend):
                     data = row['data']
                     # JSONB字段返回JSON字符串，需要解析为字典
                     if isinstance(data, str):
-                        return json.loads(data)
+                        return orjson.loads(data)
                     elif isinstance(data, dict):
                         return data
                     else:

@@ -11,3 +11,5 @@ oauthlib
 motor
 redis
 asyncpg
+loguru
+numpy

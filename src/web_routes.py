@@ -5,7 +5,8 @@ Web路由模块 - 处理认证相关的HTTP请求和控制面板功能
 import asyncio
 import datetime
 import io
-import json
+import orjson
+import json as std_json  # 保留标准json库用于需要indent的场景
 import os
 import time
 import zipfile
@@ -24,6 +25,7 @@ import httpx
 
 import config
 from log import log
+from .httpx_client import http_client
 from .auth import (
     create_auth_url, get_auth_status,
     verify_password, generate_auth_token, verify_auth_token,
@@ -905,7 +907,7 @@ async def download_cred_file(filename: str, token: str = Depends(verify_token)):
             raise HTTPException(status_code=404, detail="文件不存在")
         
         # 转换为JSON字符串
-        content = json.dumps(credential_data, ensure_ascii=False, indent=2)
+        content = std_json.dumps(credential_data, ensure_ascii=False, indent=2)
         
         from fastapi.responses import Response
         return Response(
@@ -1035,7 +1037,7 @@ async def download_all_creds(token: str = Depends(verify_token)):
                     credential_data = await storage_adapter.get_credential(filename)
                     if credential_data:
                         # 转换为JSON字符串
-                        content = json.dumps(credential_data, ensure_ascii=False, indent=2)
+                        content = std_json.dumps(credential_data, ensure_ascii=False, indent=2)
                         
                         # 添加到ZIP文件中
                         zip_file.writestr(os.path.basename(filename), content)
@@ -1734,5 +1736,66 @@ async def reset_usage_statistics(request: UsageResetRequest, token: str = Depend
         
     except Exception as e:
         log.error(f"重置使用统计失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 连接池监控端点
+@router.get("/pool/stats")
+async def get_connection_pool_stats(token: str = Depends(verify_token)):
+    """
+    获取HTTP连接池统计信息
+
+    Returns:
+        连接池的详细统计信息
+    """
+    try:
+        stats = http_client.get_stats()
+        return JSONResponse(content={
+            "success": True,
+            "data": stats
+        })
+
+    except Exception as e:
+        log.error(f"获取连接池统计失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/pool/health")
+async def get_connection_pool_health(token: str = Depends(verify_token)):
+    """
+    获取HTTP连接池健康状态
+
+    Returns:
+        连接池健康检查结果
+    """
+    try:
+        health = await http_client.health_check()
+        return JSONResponse(content={
+            "success": True,
+            "data": health
+        })
+
+    except Exception as e:
+        log.error(f"连接池健康检查失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pool/stats/reset")
+async def reset_connection_pool_stats(token: str = Depends(verify_token)):
+    """
+    重置HTTP连接池统计信息
+
+    Returns:
+        重置确认消息
+    """
+    try:
+        http_client.reset_stats()
+        return JSONResponse(content={
+            "success": True,
+            "message": "连接池统计信息已重置"
+        })
+
+    except Exception as e:
+        log.error(f"重置连接池统计失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
