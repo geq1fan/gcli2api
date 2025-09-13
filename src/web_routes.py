@@ -5,7 +5,8 @@ Web路由模块 - 处理认证相关的HTTP请求和控制面板功能
 import asyncio
 import datetime
 import io
-import json
+import orjson
+import json as std_json  # 保留标准json库用于需要indent的场景
 import os
 import time
 import zipfile
@@ -905,7 +906,7 @@ async def download_cred_file(filename: str, token: str = Depends(verify_token)):
             raise HTTPException(status_code=404, detail="文件不存在")
         
         # 转换为JSON字符串
-        content = json.dumps(credential_data, ensure_ascii=False, indent=2)
+        content = std_json.dumps(credential_data, ensure_ascii=False, indent=2)
         
         from fastapi.responses import Response
         return Response(
@@ -1035,7 +1036,7 @@ async def download_all_creds(token: str = Depends(verify_token)):
                     credential_data = await storage_adapter.get_credential(filename)
                     if credential_data:
                         # 转换为JSON字符串
-                        content = json.dumps(credential_data, ensure_ascii=False, indent=2)
+                        content = std_json.dumps(credential_data, ensure_ascii=False, indent=2)
                         
                         # 添加到ZIP文件中
                         zip_file.writestr(os.path.basename(filename), content)

@@ -30,26 +30,29 @@ class UnifiedCacheManager:
     
     def __init__(
         self,
-        cache_backend: CacheBackend,
+        cache_backend: CacheBackend,  # L3 持久化后端 (e.g., MongoDB)
         cache_ttl: float = 300.0,
         write_delay: float = 1.0,
-        name: str = "cache"
+        name: str = "cache",
+        l2_cache_backend: Optional[CacheBackend] = None  # 可选的 L2 缓存后端 (e.g., Redis)
     ):
         """
         初始化缓存管理器
         
         Args:
-            cache_backend: 缓存后端实现
+            cache_backend: L3 持久化后端实现 (e.g., MongoDB)
             cache_ttl: 缓存TTL（秒）
             write_delay: 写入延迟（秒）
             name: 缓存名称（用于日志）
+            l2_cache_backend: 可选的 L2 缓存后端实现 (e.g., Redis)
         """
-        self._backend = cache_backend
+        self._l3_backend = cache_backend  # 重命名为 L3 后端以明确其角色
+        self._l2_backend = l2_cache_backend  # L2 后端
         self._cache_ttl = cache_ttl
         self._write_delay = write_delay
         self._name = name
         
-        # 缓存数据
+        # 缓存数据 (L1 - 内存缓存)
         self._cache: Dict[str, Any] = {}
         self._cache_dirty = False
         self._last_cache_time = 0
@@ -228,18 +231,33 @@ class UnifiedCacheManager:
             self._last_cache_time = current_time
     
     async def _load_cache(self):
-        """从底层存储加载缓存"""
+        """从多层缓存加载数据 (L1 -> L2 -> L3)"""
         try:
             start_time = time.time()
+            data = None
             
-            # 从后端加载数据
-            data = await self._backend.load_data()
+            # 1. 尝试从 L3 (持久化存储) 加载数据
+            # 注意：在多层缓存架构中，L3 是最终的数据源。
+            # 但在当前简化实现中，我们仍然从 L3 加载，因为 L2 可能未命中或未启用。
+            # 在更复杂的实现中，可能会先检查 L2。
+            data = await self._l3_backend.load_data()
             
             if data:
                 self._cache = data
-                log.debug(f"{self._name} cache loaded ({len(self._cache)}) from backend")
+                log.debug(f"{self._name} cache loaded ({len(self._cache)}) from L3 backend")
+                
+                # 如果 L2 启用，将数据写入 L2 以供后续快速访问
+                # 这是一个简单的“回种”策略
+                if self._l2_backend:
+                    try:
+                        # 注意：这里我们直接写入 L2，可能会覆盖 L2 中的更新。
+                        # 在生产环境中，可能需要更复杂的同步策略。
+                        await self._l2_backend.write_data(data)
+                        log.debug(f"{self._name} cache data reseeded to L2 backend")
+                    except Exception as e:
+                        log.warning(f"Failed to reseed {self._name} cache to L2: {e}")
             else:
-                # 如果后端没有数据，初始化空缓存
+                # 如果 L3 没有数据，初始化空缓存
                 self._cache = {}
                 log.debug(f"{self._name} cache initialized empty")
             
@@ -271,25 +289,36 @@ class UnifiedCacheManager:
                 await asyncio.sleep(1)
     
     async def _write_cache(self):
-        """将缓存写回底层存储"""
+        """将缓存写回多层存储 (L2 and L3)"""
         if not self._cache_dirty:
             return
         
         try:
             start_time = time.time()
+            data_to_write = self._cache.copy()
+            success_l3 = True  # 默认认为 L3 写入成功，除非明确失败
+            success_l2 = True  # 默认认为 L2 写入成功（如果 L2 存在）
             
-            # 写入后端
-            success = await self._backend.write_data(self._cache.copy())
+            # 写入 L3 (持久化存储)
+            success_l3 = await self._l3_backend.write_data(data_to_write)
             
-            if success:
+            # 如果 L2 存在，也写入 L2
+            if self._l2_backend:
+                try:
+                    success_l2 = await self._l2_backend.write_data(data_to_write)
+                except Exception as e:
+                    success_l2 = False
+                    log.warning(f"Failed to write {self._name} cache to L2 backend: {e}")
+            
+            if success_l3:
                 self._cache_dirty = False
                 operation_time = time.time() - start_time
-                log.debug(f"{self._name} cache written to backend in {operation_time:.3f}s ({len(self._cache)} items)")
+                log.debug(f"{self._name} cache written to L3 (and L2 if enabled) in {operation_time:.3f}s ({len(self._cache)} items)")
             else:
-                log.error(f"Failed to write {self._name} cache to backend")
+                log.error(f"Failed to write {self._name} cache to L3 backend")
             
         except Exception as e:
-            log.error(f"Error writing {self._name} cache to backend: {e}")
+            log.error(f"Error writing {self._name} cache to backends: {e}")
     
     async def _flush_cache(self):
         """立即刷新缓存到底层存储"""

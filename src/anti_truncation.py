@@ -2,7 +2,7 @@
 Anti-Truncation Module - Ensures complete streaming output
 保持一个流式请求内完整输出的反截断模块
 """
-import json
+import orjson
 import re
 from typing import Dict, Any, AsyncGenerator, List, Tuple
 
@@ -245,7 +245,7 @@ class AntiTruncationStreamProcessor:
                             break
                     
                     try:
-                        data = json.loads(payload_data.decode())
+                        data = orjson.loads(payload_data.decode())
                         content = self._extract_content_from_chunk(data)
                         
                         if content:
@@ -260,7 +260,7 @@ class AntiTruncationStreamProcessor:
                         cleaned_chunk = self._remove_done_marker_from_chunk(chunk, data)
                         yield cleaned_chunk
                         
-                    except (json.JSONDecodeError, UnicodeDecodeError):
+                    except (orjson.JSONDecodeError, UnicodeDecodeError):
                         yield chunk
                         continue
                 
@@ -313,7 +313,7 @@ class AntiTruncationStreamProcessor:
                             "code": 500
                         }
                     }
-                    yield f"data: {json.dumps(error_chunk)}\n\n".encode()
+                    yield f"data: {orjson.dumps(error_chunk).decode('utf-8')}\n\n".encode()
                     yield b'data: [DONE]\n\n'
                     return
                 # 否则继续下一次尝试
@@ -403,7 +403,7 @@ class AntiTruncationStreamProcessor:
             else:
                 content = str(response)
             
-            response_data = json.loads(content)
+            response_data = orjson.loads(content)
             
             # 检查是否包含done标记
             text_content = self._extract_content_from_response(response_data)
@@ -422,7 +422,7 @@ class AntiTruncationStreamProcessor:
             
         except Exception as e:
             log.error(f"Anti-truncation non-streaming error: {str(e)}")
-            return json.dumps({
+            return orjson.dumps({
                 "error": {
                     "message": f"Anti-truncation failed: {str(e)}",
                     "type": "api_error",
@@ -505,10 +505,10 @@ class AntiTruncationStreamProcessor:
                 if isinstance(chunk, bytes):
                     prefix = b'data: '
                     suffix = b'\n\n'  # 确保有正确的换行符
-                    json_data = json.dumps(modified_data, separators=(',',':'), ensure_ascii=False).encode('utf-8')
+                    json_data = orjson.dumps(modified_data, option=orjson.OPT_APPEND_NEWLINE).encode('utf-8')
                     return prefix + json_data + suffix
                 else:
-                    return f"data: {json.dumps(modified_data, separators=(',',':'), ensure_ascii=False)}\n\n"
+                    return f"data: {orjson.dumps(modified_data, option=orjson.OPT_APPEND_NEWLINE).decode('utf-8')}\n\n"
             
             # 处理OpenAI格式
             elif "choices" in data:
@@ -531,10 +531,10 @@ class AntiTruncationStreamProcessor:
                 if isinstance(chunk, bytes):
                     prefix = b'data: '
                     suffix = b'\n\n'  # 确保有正确的换行符
-                    json_data = json.dumps(modified_data, separators=(',',':'), ensure_ascii=False).encode('utf-8')
+                    json_data = orjson.dumps(modified_data, option=orjson.OPT_APPEND_NEWLINE).encode('utf-8')
                     return prefix + json_data + suffix
                 else:
-                    return f"data: {json.dumps(modified_data, separators=(',',':'), ensure_ascii=False)}\n\n"
+                    return f"data: {orjson.dumps(modified_data, option=orjson.OPT_APPEND_NEWLINE).decode('utf-8')}\n\n"
             
             # 如果没有找到支持的格式，返回原始chunk
             return chunk

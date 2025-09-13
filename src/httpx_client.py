@@ -12,7 +12,24 @@ from log import log
 
 
 class HttpxClientManager:
-    """通用HTTP客户端管理器"""
+    """通用HTTP客户端管理器，支持全局连接池"""
+    
+    def __init__(self):
+        self._global_client: Optional[httpx.AsyncClient] = None
+    
+    async def initialize(self, **kwargs) -> None:
+        """初始化全局HTTP客户端连接池"""
+        if self._global_client is None:
+            client_kwargs = await self.get_client_kwargs(**kwargs)
+            self._global_client = httpx.AsyncClient(**client_kwargs)
+            log.info("全局HTTP客户端连接池已初始化")
+    
+    async def close(self) -> None:
+        """关闭全局HTTP客户端连接池"""
+        if self._global_client:
+            await self._global_client.aclose()
+            self._global_client = None
+            log.info("全局HTTP客户端连接池已关闭")
     
     async def get_client_kwargs(self, timeout: float = 30.0, **kwargs) -> Dict[str, Any]:
         """获取httpx客户端的通用配置参数"""
@@ -29,24 +46,14 @@ class HttpxClientManager:
         return client_kwargs
     
     @asynccontextmanager
-    async def get_client(self, timeout: float = 30.0, **kwargs) -> AsyncGenerator[httpx.AsyncClient, None]:
-        """获取配置好的异步HTTP客户端"""
-        client_kwargs = await self.get_client_kwargs(timeout=timeout, **kwargs)
+    async def get_client(self, **kwargs) -> AsyncGenerator[httpx.AsyncClient, None]:
+        """获取配置好的异步HTTP客户端（复用全局连接池）"""
+        if self._global_client is None:
+            raise RuntimeError("全局HTTP客户端未初始化，请先调用 initialize() 方法")
         
-        async with httpx.AsyncClient(**client_kwargs) as client:
-            yield client
+        # 这里直接返回全局客户端实例
+        yield self._global_client
     
-    @asynccontextmanager
-    async def get_streaming_client(self, timeout: float = None, **kwargs) -> AsyncGenerator[httpx.AsyncClient, None]:
-        """获取用于流式请求的HTTP客户端（无超时限制）"""
-        client_kwargs = await self.get_client_kwargs(timeout=timeout, **kwargs)
-        
-        # 创建独立的客户端实例用于流式处理
-        client = httpx.AsyncClient(**client_kwargs)
-        try:
-            yield client
-        finally:
-            await client.aclose()
 
 
 # 全局HTTP客户端管理器实例
@@ -54,34 +61,34 @@ http_client = HttpxClientManager()
 
 
 # 通用的异步方法
-async def get_async(url: str, headers: Optional[Dict[str, str]] = None, 
+async def get_async(url: str, headers: Optional[Dict[str, str]] = None,
                    timeout: float = 30.0, **kwargs) -> httpx.Response:
     """通用异步GET请求"""
-    async with http_client.get_client(timeout=timeout, **kwargs) as client:
-        return await client.get(url, headers=headers)
+    async with http_client.get_client(**kwargs) as client:
+        return await client.get(url, headers=headers, timeout=timeout)
 
 
 async def post_async(url: str, data: Any = None, json: Any = None,
                     headers: Optional[Dict[str, str]] = None,
                     timeout: float = 30.0, **kwargs) -> httpx.Response:
     """通用异步POST请求"""
-    async with http_client.get_client(timeout=timeout, **kwargs) as client:
-        return await client.post(url, data=data, json=json, headers=headers)
+    async with http_client.get_client(**kwargs) as client:
+        return await client.post(url, data=data, json=json, headers=headers, timeout=timeout)
 
 
 async def put_async(url: str, data: Any = None, json: Any = None,
                    headers: Optional[Dict[str, str]] = None,
                    timeout: float = 30.0, **kwargs) -> httpx.Response:
     """通用异步PUT请求"""
-    async with http_client.get_client(timeout=timeout, **kwargs) as client:
-        return await client.put(url, data=data, json=json, headers=headers)
+    async with http_client.get_client(**kwargs) as client:
+        return await client.put(url, data=data, json=json, headers=headers, timeout=timeout)
 
 
 async def delete_async(url: str, headers: Optional[Dict[str, str]] = None,
                       timeout: float = 30.0, **kwargs) -> httpx.Response:
     """通用异步DELETE请求"""
-    async with http_client.get_client(timeout=timeout, **kwargs) as client:
-        return await client.delete(url, headers=headers)
+    async with http_client.get_client(**kwargs) as client:
+        return await client.delete(url, headers=headers, timeout=timeout)
 
 
 # 错误处理装饰器
@@ -162,13 +169,8 @@ async def get_streaming_post_context(url: str, data: Any = None, json: Any = Non
                                    headers: Optional[Dict[str, str]] = None,
                                    timeout: float = None, **kwargs) -> AsyncGenerator[StreamingContext, None]:
     """获取流式POST请求的上下文管理器"""
-    async with http_client.get_streaming_client(timeout=timeout, **kwargs) as client:
-        stream_ctx = client.stream("POST", url, data=data, json=json, headers=headers)
+    async with http_client.get_client(**kwargs) as client:
+        stream_ctx = client.stream("POST", url, data=data, json=json, headers=headers, timeout=timeout)
         streaming_context = StreamingContext(client, stream_ctx)
         yield streaming_context
 
-
-async def create_streaming_client_with_kwargs(**kwargs) -> httpx.AsyncClient:
-    """创建用于流式处理的独立客户端实例（手动管理生命周期）"""
-    client_kwargs = await http_client.get_client_kwargs(timeout=None, **kwargs)
-    return httpx.AsyncClient(**client_kwargs)

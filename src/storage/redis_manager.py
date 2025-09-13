@@ -3,7 +3,7 @@ Redis数据库管理器，使用哈希表设计和统一缓存。
 所有凭证数据存储在一个哈希表中，配置数据存储在另一个哈希表中。
 """
 import asyncio
-import json
+import orjson
 import os
 import time
 from typing import Dict, Any, List, Optional
@@ -31,8 +31,8 @@ class RedisCacheBackend(CacheBackend):
             result = {}
             for key, value_str in hash_data.items():
                 try:
-                    result[key] = json.loads(value_str)
-                except json.JSONDecodeError as e:
+                    result[key] = orjson.loads(value_str)
+                except orjson.JSONDecodeError as e:
                     log.error(f"Error deserializing Redis data for key {key}: {e}")
                     continue
             return result
@@ -41,7 +41,7 @@ class RedisCacheBackend(CacheBackend):
             return {}
     
     async def write_data(self, data: Dict[str, Any]) -> bool:
-        """将数据写入Redis哈希表"""
+        """将数据写入Redis哈希表（使用批量操作和管道）"""
         try:
             if not data:
                 await self._client.delete(self._hash_name)
@@ -50,7 +50,7 @@ class RedisCacheBackend(CacheBackend):
             hash_data = {}
             for key, value in data.items():
                 try:
-                    hash_data[key] = json.dumps(value, ensure_ascii=False)
+                    hash_data[key] = orjson.dumps(value, option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY).decode('utf-8')
                 except (TypeError, ValueError) as e:
                     log.error(f"Error serializing data for key {key}: {e}")
                     continue
@@ -58,8 +58,8 @@ class RedisCacheBackend(CacheBackend):
             if not hash_data:
                 return True
             
+            # 使用管道执行批量 hset 操作，移除了不必要的 delete 操作
             pipe = self._client.pipeline()
-            pipe.delete(self._hash_name)
             pipe.hset(self._hash_name, mapping=hash_data)
             await pipe.execute()
             return True

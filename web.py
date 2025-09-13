@@ -17,6 +17,7 @@ from src.web_routes import router as web_router
 # Import managers and utilities
 from src.credential_manager import CredentialManager
 from src.task_manager import shutdown_all_tasks
+from src.httpx_client import http_client  # 导入全局HTTP客户端管理器
 from config import get_server_host, get_server_port
 from log import log
 
@@ -29,6 +30,14 @@ async def lifespan(app: FastAPI):
     global global_credential_manager
     
     log.info("启动 GCLI2API 主服务")
+    
+    # 初始化全局HTTP客户端连接池
+    try:
+        await http_client.initialize()
+        log.info("全局HTTP客户端连接池初始化成功")
+    except Exception as e:
+        log.error(f"全局HTTP客户端连接池初始化失败: {e}")
+        # 即使初始化失败，也继续启动服务，但会使用每次新建连接的方式
     
     # 初始化全局凭证管理器
     try:
@@ -77,6 +86,23 @@ async def lifespan(app: FastAPI):
             log.info("凭证管理器已关闭")
         except Exception as e:
             log.error(f"关闭凭证管理器时出错: {e}")
+    
+    # 最后关闭全局HTTP客户端连接池
+    try:
+        await http_client.close()
+        log.info("全局HTTP客户端连接池已关闭")
+    except Exception as e:
+        log.error(f"关闭全局HTTP客户端连接池时出错: {e}")
+    
+    # 关闭异步日志写入器
+    try:
+        from log import get_async_log_writer
+        async_log_writer = get_async_log_writer()
+        if async_log_writer:
+            await async_log_writer.stop()
+            log.info("异步日志写入器已关闭")
+    except Exception as e:
+        log.error(f"关闭异步日志写入器时出错: {e}")
     
     log.info("GCLI2API 主服务已停止")
 
@@ -139,7 +165,9 @@ async def main():
     from hypercorn.asyncio import serve
     from hypercorn.config import Config
     
-    # 日志系统现在直接使用环境变量，无需初始化
+    # 初始化日志系统
+    from log import setup_logging
+    setup_logging()
     
     # 从环境变量或配置获取端口和主机
     port = await get_server_port()

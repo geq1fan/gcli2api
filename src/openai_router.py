@@ -2,7 +2,8 @@
 OpenAI Router - Handles OpenAI format API requests
 处理OpenAI格式请求的路由模块
 """
-import json
+import orjson
+import json as std_json # 保留标准json库，以防需要格式化输出
 import time
 import uuid
 import asyncio
@@ -177,9 +178,9 @@ async def chat_completions(
     try:
         log.debug(f"Processing response: type={type(response)}")
         if hasattr(response, 'body'):
-            response_data = json.loads(response.body.decode() if isinstance(response.body, bytes) else response.body)
+            response_data = orjson.loads(response.body.decode() if isinstance(response.body, bytes) else response.body)
         else:
-            response_data = json.loads(response.content.decode() if isinstance(response.content, bytes) else response.content)
+            response_data = orjson.loads(response.content.decode() if isinstance(response.content, bytes) else response.content)
         
         log.debug(f"Response data keys: {list(response_data.keys()) if isinstance(response_data, dict) else 'Not a dict'}")
         openai_response = gemini_response_to_openai(response_data, model)
@@ -203,7 +204,7 @@ async def fake_stream_response(api_payload: dict, cred_mgr: CredentialManager) -
                     "finish_reason": None
                 }]
             }
-            yield f"data: {json.dumps(heartbeat)}\n\n".encode()
+            yield f"data: {orjson.dumps(heartbeat).decode('utf-8')}\n\n".encode()
             
             # 异步发送实际请求
             async def get_response():
@@ -217,7 +218,7 @@ async def fake_stream_response(api_payload: dict, cred_mgr: CredentialManager) -
                 while not response_task.done():
                     await asyncio.sleep(3.0)
                     if not response_task.done():
-                        yield f"data: {json.dumps(heartbeat)}\n\n".encode()
+                        yield f"data: {orjson.dumps(heartbeat).decode('utf-8')}\n\n".encode()
                 
                 # 获取响应结果
                 response = await response_task
@@ -252,7 +253,7 @@ async def fake_stream_response(api_payload: dict, cred_mgr: CredentialManager) -
                 body_str = str(response)
             
             try:
-                response_data = json.loads(body_str)
+                response_data = orjson.loads(body_str)
                 log.debug(f"Fake stream response data: {response_data}")
                 
                 # 从Gemini响应中提取内容，使用思维链分离逻辑
@@ -290,7 +291,7 @@ async def fake_stream_response(api_payload: dict, cred_mgr: CredentialManager) -
                             "finish_reason": "stop"
                         }]
                     }
-                    yield f"data: {json.dumps(content_chunk)}\n\n".encode()
+                    yield f"data: {orjson.dumps(content_chunk).decode('utf-8')}\n\n".encode()
                 else:
                     log.warning(f"No content found in response: {response_data}")
                     # 如果完全没有内容，提供默认回复
@@ -301,8 +302,8 @@ async def fake_stream_response(api_payload: dict, cred_mgr: CredentialManager) -
                             "finish_reason": "stop"
                         }]
                     }
-                    yield f"data: {json.dumps(error_chunk)}\n\n".encode()
-            except json.JSONDecodeError:
+                    yield f"data: {orjson.dumps(error_chunk).decode('utf-8')}\n\n".encode()
+            except orjson.JSONDecodeError:
                 error_chunk = {
                     "choices": [{
                         "index": 0,
@@ -310,7 +311,7 @@ async def fake_stream_response(api_payload: dict, cred_mgr: CredentialManager) -
                         "finish_reason": "stop"
                     }]
                 }
-                yield f"data: {json.dumps(error_chunk)}\n\n".encode()
+                yield f"data: {orjson.dumps(error_chunk).decode('utf-8')}\n\n".encode()
             
             yield "data: [DONE]\n\n".encode()
             
@@ -323,7 +324,7 @@ async def fake_stream_response(api_payload: dict, cred_mgr: CredentialManager) -
                     "finish_reason": "stop"
                 }]
             }
-            yield f"data: {json.dumps(error_chunk)}\n\n".encode()
+            yield f"data: {orjson.dumps(error_chunk).decode('utf-8')}\n\n".encode()
             yield "data: [DONE]\n\n".encode()
 
     return StreamingResponse(stream_generator(), media_type="text/event-stream")
@@ -352,10 +353,10 @@ async def convert_streaming_response(gemini_response, model: str) -> StreamingRe
                             continue
                         payload = chunk_str[len('data: '):].encode()
                     try:
-                        gemini_chunk = json.loads(payload.decode())
+                        gemini_chunk = orjson.loads(payload.decode())
                         openai_chunk = gemini_stream_chunk_to_openai(gemini_chunk, model, response_id)
-                        yield f"data: {json.dumps(openai_chunk, separators=(',',':'))}\n\n".encode()
-                    except json.JSONDecodeError:
+                        yield f"data: {orjson.dumps(openai_chunk, option=orjson.OPT_APPEND_NEWLINE).decode('utf-8')}\n\n".encode()
+                    except orjson.JSONDecodeError:
                         continue
             else:
                 # 其他类型的响应，尝试直接处理
@@ -371,7 +372,7 @@ async def convert_streaming_response(gemini_response, model: str) -> StreamingRe
                         "finish_reason": "stop"
                     }]
                 }
-                yield f"data: {json.dumps(error_chunk)}\n\n".encode()
+                yield f"data: {orjson.dumps(error_chunk).decode('utf-8')}\n\n".encode()
             
             # 发送结束标记
             yield "data: [DONE]\n\n".encode()
@@ -389,7 +390,7 @@ async def convert_streaming_response(gemini_response, model: str) -> StreamingRe
                     "finish_reason": "stop"
                 }]
             }
-            yield f"data: {json.dumps(error_chunk)}\n\n".encode()
+            yield f"data: {orjson.dumps(error_chunk).decode('utf-8')}\n\n".encode()
             yield "data: [DONE]\n\n".encode()
 
     return StreamingResponse(openai_stream_generator(), media_type="text/event-stream")

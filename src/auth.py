@@ -2,7 +2,7 @@
 认证API模块 - 使用统一存储中间层，完全摆脱文件操作
 """
 import asyncio
-import json
+import orjson
 import secrets
 import socket
 import threading
@@ -1248,7 +1248,7 @@ def invalidate_auth_token(token: str):
 def validate_credential_content(content: str) -> Dict[str, Any]:
     """验证凭证内容格式"""
     try:
-        creds_data = json.loads(content)
+        creds_data = orjson.loads(content)
         
         # 检查必要字段
         required_fields = ['client_id', 'client_secret', 'refresh_token', 'token_uri']
@@ -1269,7 +1269,7 @@ def validate_credential_content(content: str) -> Dict[str, Any]:
             'data': creds_data
         }
         
-    except json.JSONDecodeError as e:
+    except orjson.JSONDecodeError as e:
         return {
             'valid': False,
             'error': f'JSON格式错误: {str(e)}'
