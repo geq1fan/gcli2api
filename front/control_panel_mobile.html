@@ -546,14 +546,16 @@
                     <div style="padding: 12px; border: 2px solid #28a745; border-radius: 8px; background: #f8fff9;">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" id="getAllProjectsCreds" style="transform: scale(1.2);">
-                            <label for="getAllProjectsCreds" style="font-weight: bold; color: #28a745; margin: 0; cursor: pointer; font-size: 14px;">
+                            <label for="getAllProjectsCreds"
+                                style="font-weight: bold; color: #28a745; margin: 0; cursor: pointer; font-size: 14px;">
                                 🌐 为当前账号所有项目获取凭证
                             </label>
                         </div>
                         <div style="margin-top: 8px; color: #155724; font-size: 12px; line-height: 1.4;">
                             <strong>说明：</strong>勾选此选项后，系统会自动检测当前Google账号下的所有项目，<strong>并发处理</strong>为每个项目生成独立的认证文件。
                         </div>
-                        <div id="allProjectsNote" style="margin-top: 6px; padding: 6px; background: #d4edda; border-radius: 4px; font-size: 11px; color: #155724; display: none;">
+                        <div id="allProjectsNote"
+                            style="margin-top: 6px; padding: 6px; background: #d4edda; border-radius: 4px; font-size: 11px; color: #155724; display: none;">
                             ✨ <strong>批量并发认证模式已启用</strong> - 认证完成后将并发为所有可访问的项目生成凭证文件
                         </div>
                     </div>
@@ -578,16 +580,21 @@
                             <li>点击下方"获取认证文件"按钮完成流程</li>
                         </ol>
                     </div>
-                    
+
                     <!-- 快捷回调URL输入选项 (移动端) -->
-                    <div style="margin: 15px 0; padding: 12px; border: 2px solid #e8f4fd; border-radius: 8px; background: #f8fcff;">
-                        <div style="cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;" onclick="toggleCallbackUrlSection()">
+                    <div
+                        style="margin: 15px 0; padding: 12px; border: 2px solid #e8f4fd; border-radius: 8px; background: #f8fcff;">
+                        <div style="cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"
+                            onclick="toggleCallbackUrlSection()">
                             <span style="font-weight: bold; color: #0066cc; font-size: 13px;">🚀 无法回源？试试快捷方式</span>
-                            <span id="callbackUrlToggleIcon" style="font-size: 12px; color: #666; transition: transform 0.3s ease;">▼</span>
+                            <span id="callbackUrlToggleIcon"
+                                style="font-size: 12px; color: #666; transition: transform 0.3s ease;">▼</span>
                         </div>
                         <div id="callbackUrlSection" style="display: none;">
-                            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 8px; margin-bottom: 8px;">
-                                <div style="color: #856404; font-size: 12px; font-weight: bold; margin-bottom: 4px;">📚 适用场景：</div>
+                            <div
+                                style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 8px; margin-bottom: 8px;">
+                                <div style="color: #856404; font-size: 12px; font-weight: bold; margin-bottom: 4px;">📚
+                                    适用场景：</div>
                                 <div style="color: #856404; font-size: 11px; line-height: 1.4;">
                                     • 云服务器、VPS等非本地环境<br>
                                     • 防火墙阻止了8080端口<br>
@@ -598,12 +605,15 @@
                             <div style="color: #666; font-size: 11px; margin-bottom: 8px; line-height: 1.5;">
                                 <strong style="color: #0066cc;">🔍 什么是回调URL？</strong><br>
                                 完成Google OAuth授权后，浏览器地址栏的完整URL，例如：<br>
-                                <code style="background: #f1f3f4; padding: 2px 4px; border-radius: 2px; font-size: 10px; display: block; margin-top: 4px; word-break: break-all;">
+                                <code
+                                    style="background: #f1f3f4; padding: 2px 4px; border-radius: 2px; font-size: 10px; display: block; margin-top: 4px; word-break: break-all;">
                                     http://localhost:8080/?state=abc&code=4/0AVM...
                                 </code>
                             </div>
-                            <div style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 4px; padding: 8px; margin-bottom: 8px;">
-                                <div style="color: #0066cc; font-size: 11px; font-weight: bold; margin-bottom: 3px;">📋 使用步骤：</div>
+                            <div
+                                style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 4px; padding: 8px; margin-bottom: 8px;">
+                                <div style="color: #0066cc; font-size: 11px; font-weight: bold; margin-bottom: 3px;">📋
+                                    使用步骤：</div>
                                 <div style="color: #0066cc; font-size: 10px; line-height: 1.3;">
                                     1. 点击认证链接完成授权<br>
                                     2. 复制浏览器地址栏完整URL<br>
@@ -611,15 +621,17 @@
                                 </div>
                             </div>
                             <div>
-                                <input type="url" id="callbackUrlInput" placeholder="粘贴完整回调URL..." 
-                                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; box-sizing: border-box;">
+                                <input type="url" id="callbackUrlInput" placeholder="粘贴完整回调URL..."
+                                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; box-sizing: border-box;">
                             </div>
-                            <button class="btn" style="margin-top: 8px; background: #28a745; border-color: #28a745; font-size: 12px; padding: 8px 16px;" onclick="processCallbackUrl()">
+                            <button class="btn"
+                                style="margin-top: 8px; background: #28a745; border-color: #28a745; font-size: 12px; padding: 8px 16px;"
+                                onclick="processCallbackUrl()">
                                 从回调URL获取凭证
                             </button>
                         </div>
                     </div>
-                    
+
                     <button class="btn" id="getCredsBtn" onclick="getCredentials()">获取认证文件</button>
                 </div>
 
@@ -869,15 +881,15 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
                 <div class="stats-container" id="usageStatsContainer">
                     <div class="stat-item" style="border-left: 4px solid #007bff;">
                         <span class="stat-number" id="totalApiCalls">0</span>
-                        <span class="stat-label">总调用数</span>
-                    </div>
-                    <div class="stat-item" style="border-left: 4px solid #ff6b35;">
-                        <span class="stat-number" id="geminiProCalls">0</span>
-                        <span class="stat-label">Gemini 2.5 Pro</span>
+                        <span class="stat-label">24小时调用</span>
                     </div>
                     <div class="stat-item" style="border-left: 4px solid #6c757d;">
                         <span class="stat-number" id="totalFiles">0</span>
                         <span class="stat-label">活跃文件数</span>
+                    </div>
+                    <div class="stat-item" style="border-left: 4px solid #28a745;">
+                        <span class="stat-number" id="avgCallsPerFile">0</span>
+                        <span class="stat-label">平均调用/文件</span>
                     </div>
                 </div>
 
@@ -885,7 +897,7 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
                     <button class="btn btn-small" onclick="refreshUsageStats()"
                         style="background-color: #17a2b8;">刷新统计</button>
                     <button class="btn btn-small" style="background-color: #dc3545;"
-                        onclick="resetAllUsageStats()">重置所有统计</button>
+                        onclick="resetAllUsageStats()">重置统计</button>
                 </div>
 
                 <!-- 文件使用统计列表 -->
@@ -901,17 +913,16 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
                         style="background-color: #e3f2fd; border: 1px solid #1976d2; border-radius: 6px; padding: 12px; font-size: 13px; color: #1565c0;">
                         <strong>统计范围：</strong>
                         <ul style="margin: 8px 0 4px 0; color: #424242;">
-                            <li><strong>Gemini 2.5 Pro 调用次数：</strong>仅统计 gemini-2.5-pro 及其变体模型的成功调用</li>
-                            <li><strong>所有模型调用次数：</strong>统计所有模型的成功调用总数</li>
-                            <li><strong>每日配额：</strong>默认每日配额 Gemini 2.5 Pro: 100次，所有模型: 1000次</li>
-                            <li><strong>配额重置：</strong>每天 UTC 07:00 自动重置调用计数</li>
+                            <li><strong>24小时调用统计：</strong>统计最近24小时内的所有成功API调用</li>
+                            <li><strong>自动清理：</strong>超过24小时的调用记录会自动清除</li>
+                            <li><strong>实时更新：</strong>每次API调用成功后立即更新统计数据</li>
                         </ul>
 
                         <strong>注意：</strong>
                         <ul style="margin: 8px 0 4px 0; color: #424242;">
                             <li>只统计返回正常响应的API调用，报错的调用不计入统计</li>
-                            <li>统计数据持久化保存在 creds_state.toml 文件中</li>
-                            <li>支持每个凭证文件独立统计和配额管理</li>
+                            <li>统计数据持久化保存，重启服务不会丢失</li>
+                            <li>支持每个凭证文件独立统计</li>
                         </ul>
                     </div>
                 </div>
@@ -1125,6 +1136,21 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
                                     <br><strong>适用场景：</strong>当遇到流式传输时模型不返回内容或返回空响应时启用此选项。
                                 </div>
                             </div>
+
+                            <div class="form-group">
+                                <label style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" id="returnThoughtsToFrontend"
+                                        style="width: auto; margin: 0;" />
+                                    返回思维链到前端
+                                </label>
+                                <small
+                                    style="display: block; color: #666; font-size: 12px; margin-top: 5px;">启用后，模型的思维链会在响应中返回；禁用后，思维链会被过滤掉
+                                    <span style="color: #28a745;">✓ 支持热更新</span></small>
+                                <div
+                                    style="background-color: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 12px; margin-top: 8px; font-size: 13px; color: #0d47a1;">
+                                    <strong>💭 说明：</strong>某些模型（如Gemini 2.0 Pro）支持thinking模式，会在生成回答前先输出思考过程。启用后可以看到模型的思考过程；禁用后只显示最终回答，让输出更简洁。
+                                </div>
+                            </div>
                         </div>
 
                         <div class="card">
@@ -1326,38 +1352,6 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
                         style="color: #007bff; text-decoration: none;">github.com/su-kaka/gcli2api</a></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #dc3545; font-weight: 500;">⚠️ 禁止商业用途和倒卖 - 仅供学习使用 ⚠️
                 </p>
-            </div>
-        </div>
-    </div>
-
-    <!-- 限制设置弹窗 -->
-    <div id="limitsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 style="margin: 0; font-size: 16px; color: #333;">设置使用限制</h3>
-                <button class="modal-close" onclick="closeLimitsModal()">&times;</button>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <div class="form-group">
-                    <label for="modalFilename">文件名:</label>
-                    <input type="text" id="modalFilename" readonly />
-                </div>
-                <div class="form-group">
-                    <label for="modalGeminiLimit">Gemini 2.5 Pro 每日限制:</label>
-                    <input type="number" id="modalGeminiLimit" min="1" max="10000" />
-                    <small style="display: block; color: #666; font-size: 12px; margin-top: 5px;">每日Gemini 2.5
-                        Pro模型调用次数限制</small>
-                </div>
-                <div class="form-group">
-                    <label for="modalTotalLimit">所有模型每日限制:</label>
-                    <input type="number" id="modalTotalLimit" min="1" max="50000" />
-                    <small style="display: block; color: #666; font-size: 12px; margin-top: 5px;">每日所有模型调用次数总限制</small>
-                </div>
-            </div>
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button class="btn btn-small" onclick="closeLimitsModal()"
-                    style="background-color: #6c757d;">取消</button>
-                <button class="btn btn-small" onclick="saveLimits()">保存</button>
             </div>
         </div>
     </div>
@@ -1583,12 +1577,12 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
                 if (response.ok) {
                     const credentialsSection = document.getElementById('credentialsSection');
                     const credentialsContent = document.getElementById('credentialsContent');
-                    
+
                     if (getAllProjects && data.multiple_credentials) {
                         // 处理多项目认证结果
                         const results = data.multiple_credentials;
                         let resultText = `批量并发认证完成！成功为 ${results.success.length} 个项目生成凭证：\n\n`;
-                        
+
                         // 显示成功的项目
                         results.success.forEach((item, index) => {
                             resultText += `${index + 1}. 项目: ${item.project_name} (${item.project_id})\n`;
@@ -1609,14 +1603,14 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
                     } else {
                         // 处理单项目认证结果
                         credentialsContent.textContent = JSON.stringify(data.credentials, null, 2);
-                        
+
                         if (data.auto_detected_project) {
                             showStatus(`✅ 认证成功！项目ID已自动检测为: ${data.credentials.project_id}，文件已保存到: ${data.file_path}`, 'success');
                         } else {
                             showStatus(`✅ 认证成功！文件已保存到: ${data.file_path}`, 'success');
                         }
                     }
-                    
+
                     credentialsSection.classList.remove('hidden');
                     authInProgress = false;
                 } else {
@@ -1751,7 +1745,7 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
                     // 处理多项目认证结果
                     const results = result.multiple_credentials;
                     let resultText = `批量并发认证完成！成功为 ${results.success.length} 个项目生成凭证：\n\n`;
-                    
+
                     // 显示成功的项目
                     results.success.forEach((item, index) => {
                         resultText += `${index + 1}. 项目: ${item.project_name} (${item.project_id})\n`;
@@ -1771,15 +1765,15 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
                     document.getElementById('credentialsContent').textContent = resultText;
                     document.getElementById('credentialsSection').classList.remove('hidden');
                     showStatus(`✅ 批量并发认证完成！成功生成 ${results.success.length} 个项目的凭证文件${results.failed.length > 0 ? `，${results.failed.length} 个项目失败` : ''}`, 'success');
-                    
+
                 } else if (result.credentials) {
                     // 处理单项目认证结果
                     showStatus(result.message || '从回调URL获取凭证成功！', 'success');
-                    
+
                     // 显示凭证内容
                     document.getElementById('credentialsContent').innerHTML = JSON.stringify(result.credentials, null, 2);
                     document.getElementById('credentialsSection').classList.remove('hidden');
-                    
+
                 } else if (result.requires_manual_project_id) {
                     showStatus('需要手动指定项目ID，请在高级选项中填入Google Cloud项目ID后重试', 'error');
                 } else if (result.requires_project_selection) {
@@ -1791,20 +1785,20 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
                 } else {
                     showStatus(result.error || '从回调URL获取凭证失败', 'error');
                 }
-                
+
                 // 清空输入框
                 callbackUrlInput.value = '';
-                
+
                 // 刷新凭证列表（如果有）
                 setTimeout(() => {
                     if (typeof loadCredentialsStatus === 'function') {
                         loadCredentialsStatus();
                     }
                 }, 1000);
-        } catch (error) {
-            console.error('从回调URL获取凭证时出错:', error);
-            showStatus(`从回调URL获取凭证失败: ${error.message}`, 'error');
-        }
+            } catch (error) {
+                console.error('从回调URL获取凭证时出错:', error);
+                showStatus(`从回调URL获取凭证失败: ${error.message}`, 'error');
+            }
         }
 
         // 文件上传相关函数
@@ -1877,22 +1871,6 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
             if (uploadSelectedFiles.length === 0) {
                 showStatus('请选择要上传的文件', 'error');
                 return;
-            }
-
-            // 检查文件大小
-            const totalSize = uploadSelectedFiles.reduce((sum, file) => sum + file.size, 0);
-            const maxSize = 200 * 1024 * 1024; // 200MB limit
-            if (totalSize > maxSize) {
-                showStatus(`文件总大小 ${(totalSize / 1024 / 1024).toFixed(1)}MB 超过限制 ${maxSize / 1024 / 1024}MB。请分批上传或删除部分文件。`, 'error');
-                return;
-            }
-
-            // 检查单个文件大小
-            for (const file of uploadSelectedFiles) {
-                if (file.size > 5 * 1024 * 1024) {
-                    showStatus(`文件 "${file.name}" 大小 ${(file.size / 1024 / 1024).toFixed(1)}MB 超过单文件5MB限制`, 'error');
-                    return;
-                }
             }
 
             const progressSection = document.getElementById('uploadProgressSection');
@@ -2740,23 +2718,38 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
                     })
                 ]);
 
+                // 检查认证错误
+                if (statsResponse.status === 401 || aggregatedResponse.status === 401) {
+                    showStatus('认证失败，请重新登录', 'error');
+                    // 重定向到登录页
+                    setTimeout(() => {
+                        document.getElementById('mainSection').classList.add('hidden');
+                        document.getElementById('loginSection').classList.remove('hidden');
+                        authToken = '';
+                    }, 1500);
+                    return;
+                }
+
                 const statsData = await statsResponse.json();
                 const aggregatedData = await aggregatedResponse.json();
 
                 if (statsResponse.ok && aggregatedResponse.ok) {
-                    usageStatsData = statsData.data;
+                    // API返回格式: { "success": true, "data": {...} }
+                    usageStatsData = statsData.success ? statsData.data : statsData;
 
                     // 更新概览统计
-                    document.getElementById('totalApiCalls').textContent = aggregatedData.data.total_all_model_calls || 0;
-                    document.getElementById('geminiProCalls').textContent = aggregatedData.data.total_gemini_2_5_pro_calls || 0;
-                    document.getElementById('totalFiles').textContent = aggregatedData.data.total_files || 0;
+                    const aggData = aggregatedData.success ? aggregatedData.data : aggregatedData;
+                    document.getElementById('totalApiCalls').textContent = aggData.total_calls_24h || 0;
+                    document.getElementById('totalFiles').textContent = aggData.total_files || 0;
+                    document.getElementById('avgCallsPerFile').textContent = (aggData.avg_calls_per_file || 0).toFixed(1);
 
                     // 渲染使用统计列表
                     renderUsageList();
 
-                    showStatus(`已加载 ${aggregatedData.data.total_files} 个文件的使用统计`, 'success');
+                    showStatus(`已加载 ${aggData.total_files || Object.keys(usageStatsData).length} 个文件的使用统计`, 'success');
                 } else {
-                    showStatus('加载使用统计失败', 'error');
+                    const errorMsg = statsData.detail || aggregatedData.detail || '加载使用统计失败';
+                    showStatus(`错误: ${errorMsg}`, 'error');
                 }
             } catch (error) {
                 console.error('refreshUsageStats error:', error);
@@ -2788,136 +2781,26 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
             div.className = 'card';
             div.style.marginBottom = '15px';
 
-            // 计算使用百分比
-            const geminiPercent = Math.min((stats.gemini_2_5_pro_calls / stats.daily_limit_gemini_2_5_pro) * 100, 100);
-            const totalPercent = Math.min((stats.total_calls / stats.daily_limit_total) * 100, 100);
-
-            // 确定进度条颜色
-            function getProgressClass(percent) {
-                if (percent >= 90) return '#dc3545';
-                if (percent >= 70) return '#ffc107';
-                return '#ff6b35';
-            }
-
-            function getTotalProgressClass(percent) {
-                if (percent >= 90) return '#dc3545';
-                if (percent >= 70) return '#ffc107';
-                return '#007bff';
-            }
-
-            // 格式化时间
-            function formatTime(isoString) {
-                if (!isoString) return '未知';
-                try {
-                    const date = new Date(isoString);
-                    return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-                } catch (e) {
-                    return '格式错误';
-                }
-            }
+            const calls24h = stats.calls_24h || 0;
 
             div.innerHTML = `
                 <div class="card-header">
                     <div class="card-title" style="margin-bottom: 10px;">${filename}</div>
                 </div>
-                
+
                 <div style="margin: 10px 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 12px;">
-                        <span>Gemini 2.5 Pro</span>
-                        <span>${stats.gemini_2_5_pro_calls}/${stats.daily_limit_gemini_2_5_pro} (${geminiPercent.toFixed(1)}%)</span>
-                    </div>
-                    <div class="progress-bar" style="height: 8px;">
-                        <div style="width: ${geminiPercent}%; height: 100%; background-color: ${getProgressClass(geminiPercent)}; transition: width 0.3s ease;"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 14px; color: #666;">24小时内调用次数</span>
+                        <span style="font-size: 20px; font-weight: bold; color: #007bff;">${calls24h}</span>
                     </div>
                 </div>
-                
-                <div style="margin: 10px 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 12px;">
-                        <span>所有模型</span>
-                        <span>${stats.total_calls}/${stats.daily_limit_total} (${totalPercent.toFixed(1)}%)</span>
-                    </div>
-                    <div class="progress-bar" style="height: 8px;">
-                        <div style="width: ${totalPercent}%; height: 100%; background-color: ${getTotalProgressClass(totalPercent)}; transition: width 0.3s ease;"></div>
-                    </div>
-                </div>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; font-size: 11px;">
-                    <div style="background-color: #f8f9fa; padding: 6px; border-radius: 4px; border: 1px solid #dee2e6;">
-                        <div style="font-weight: bold; color: #666; margin-bottom: 2px;">下次重置时间</div>
-                        <div style="color: #333;">${formatTime(stats.next_reset_time)}</div>
-                    </div>
-                </div>
-                
+
                 <div class="card-actions">
-                    <button class="btn-small" onclick="openLimitsModal('${filename}')" style="background-color: #17a2b8;">设置限制</button>
                     <button class="btn-small" onclick="resetSingleUsageStats('${filename}')" style="background-color: #6c757d;">重置统计</button>
                 </div>
             `;
 
             return div;
-        }
-
-        // 打开限制设置弹窗
-        function openLimitsModal(filename) {
-            const stats = usageStatsData[filename];
-            if (!stats) {
-                showStatus('找不到文件统计数据', 'error');
-                return;
-            }
-
-            currentEditingFile = filename;
-            document.getElementById('modalFilename').value = filename;
-            document.getElementById('modalGeminiLimit').value = stats.daily_limit_gemini_2_5_pro;
-            document.getElementById('modalTotalLimit').value = stats.daily_limit_total;
-            document.getElementById('limitsModal').style.display = 'block';
-        }
-
-        // 关闭限制设置弹窗
-        function closeLimitsModal() {
-            document.getElementById('limitsModal').style.display = 'none';
-            currentEditingFile = '';
-        }
-
-        // 保存限制设置
-        async function saveLimits() {
-            const geminiLimit = parseInt(document.getElementById('modalGeminiLimit').value);
-            const totalLimit = parseInt(document.getElementById('modalTotalLimit').value);
-
-            if (isNaN(geminiLimit) || geminiLimit < 1) {
-                showStatus('Gemini 2.5 Pro 限制必须是大于0的数字', 'error');
-                return;
-            }
-
-            if (isNaN(totalLimit) || totalLimit < 1) {
-                showStatus('总调用限制必须是大于0的数字', 'error');
-                return;
-            }
-
-            try {
-                const response = await fetch('/usage/update-limits', {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({
-                        filename: currentEditingFile,
-                        gemini_2_5_pro_limit: geminiLimit,
-                        total_limit: totalLimit
-                    })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    showStatus(data.message, 'success');
-                    closeLimitsModal();
-                    // 刷新统计数据
-                    await refreshUsageStats();
-                } else {
-                    showStatus(`设置失败: ${data.detail || data.error || '未知错误'}`, 'error');
-                }
-            } catch (error) {
-                console.error('saveLimits error:', error);
-                showStatus(`网络错误: ${error.message}`, 'error');
-            }
         }
 
         // 重置单个文件的使用统计
@@ -2935,11 +2818,11 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
 
                 const data = await response.json();
 
-                if (response.ok) {
+                if (response.ok && data.success) {
                     showStatus(data.message, 'success');
                     await refreshUsageStats();
                 } else {
-                    showStatus(`重置失败: ${data.detail || data.error || '未知错误'}`, 'error');
+                    showStatus(`重置失败: ${data.message || data.detail || data.error || '未知错误'}`, 'error');
                 }
             } catch (error) {
                 console.error('resetSingleUsageStats error:', error);
@@ -2962,11 +2845,11 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
 
                 const data = await response.json();
 
-                if (response.ok) {
+                if (response.ok && data.success) {
                     showStatus(data.message, 'success');
                     await refreshUsageStats();
                 } else {
-                    showStatus(`重置失败: ${data.detail || data.error || '未知错误'}`, 'error');
+                    showStatus(`重置失败: ${data.message || data.detail || data.error || '未知错误'}`, 'error');
                 }
             } catch (error) {
                 console.error('resetAllUsageStats error:', error);
@@ -2974,16 +2857,8 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
             }
         }
 
-        // 关闭弹窗当点击弹窗外部时
-        window.onclick = function (event) {
-            const modal = document.getElementById('limitsModal');
-            if (event.target == modal) {
-                closeLimitsModal();
-            }
-        }
-
         // =====================================================================
-        // 配置管理相关函数  
+        // 配置管理相关函数
         // =====================================================================
 
         // 加载配置
@@ -3054,6 +2929,9 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
 
             // 兼容性配置
             setCheckboxValue('compatibilityModeEnabled', config.compatibility_mode_enabled);
+
+            // 思维链返回配置
+            setCheckboxValue('returnThoughtsToFrontend', config.return_thoughts_to_frontend !== false);
 
             // 抗截断配置
             setFieldValue('antiTruncationMaxAttempts', config.anti_truncation_max_attempts);
@@ -3139,6 +3017,7 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
 
 
                 compatibility_mode_enabled: document.getElementById('compatibilityModeEnabled').checked,
+                return_thoughts_to_frontend: document.getElementById('returnThoughtsToFrontend').checked,
                 anti_truncation_max_attempts: parseInt(document.getElementById('antiTruncationMaxAttempts').value) || null
             };
 
@@ -3471,7 +3350,7 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
             const note = document.getElementById('allProjectsNote');
             const projectIdSection = document.getElementById('projectIdSection');
             const projectIdToggle = document.querySelector('[onclick="toggleProjectIdSection()"]');
-            
+
             if (checkbox.checked) {
                 // 显示批量认证提示
                 note.style.display = 'block';
@@ -3500,7 +3379,7 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
         window.onload = function () {
             showStatus('请输入密码登录', 'info');
             setupDragAndDrop();
-            
+
             // 添加勾选框事件监听器
             const checkbox = document.getElementById('getAllProjectsCreds');
             if (checkbox) {
@@ -3532,7 +3411,7 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
 
         // 官方端点配置
         const officialUrls = {
-            codeAssistEndpoint: 'https://cloudcodeassist-pa.googleapis.com',
+            codeAssistEndpoint: 'https://cloudcode-pa.googleapis.com',
             oauthProxyUrl: 'https://oauth2.googleapis.com',
             googleapisProxyUrl: 'https://www.googleapis.com',
             resourceManagerApiUrl: 'https://cloudresourcemanager.googleapis.com',

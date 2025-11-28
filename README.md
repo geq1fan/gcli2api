@@ -2,11 +2,16 @@
 
 **将 GeminiCLI 转换为 OpenAI 和 GEMINI API 接口**
 
+[![CI](https://github.com/su-kaka/gcli2api/workflows/CI/badge.svg)](https://github.com/su-kaka/gcli2api/actions)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: CNC-1.0](https://img.shields.io/badge/License-CNC--1.0-red.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-available-blue.svg)](https://github.com/su-kaka/gcli2api/pkgs/container/gcli2api)
+
 [English](docs/README_EN.md) | 中文
 
 ## 🚀 快速部署
 
-[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/2QLQC2?referralCode=su-kaka)
+[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/97VMEF?referralCode=su-kaka)
 ---
 
 ## ⚠️ 许可证声明
@@ -214,6 +219,19 @@ iex (iwr "https://raw.githubusercontent.com/su-kaka/gcli2api/refs/heads/master/i
 **初始安装**
 ```bash
 curl -o install.sh "https://raw.githubusercontent.com/su-kaka/gcli2api/refs/heads/master/install.sh" && chmod +x install.sh && ./install.sh
+```
+
+**重启服务**
+```bash
+cd gcli2api
+bash start.sh
+```
+
+### macOS 环境
+
+**初始安装**
+```bash
+curl -o darwin-install.sh "https://raw.githubusercontent.com/su-kaka/gcli2api/refs/heads/master/darwin-install.sh" && chmod +x darwin-install.sh && ./darwin-install.sh
 ```
 
 **重启服务**
@@ -660,6 +678,44 @@ curl -X POST "http://127.0.0.1:7861/v1/models/gemini-2.5-pro:streamGenerateConte
   }'
 ```
 
+**Gemini 原生banana：**
+```python
+from io import BytesIO
+from PIL import Image
+from google.genai import Client
+from google.genai.types import HttpOptions
+from google.genai import types
+# The client gets the API key from the environment variable `GEMINI_API_KEY`.
+
+client = Client(
+            api_key="pwd",
+            http_options=HttpOptions(base_url="http://127.0.0.1:7861"),
+        )
+
+prompt = (
+    """
+    画一只猫
+    """
+)
+
+response = client.models.generate_content(
+    model="gemini-2.5-flash-image",
+    contents=[prompt],
+    config=types.GenerateContentConfig(
+        image_config=types.ImageConfig(
+            aspect_ratio="16:9",
+        )
+    )
+)
+for part in response.candidates[0].content.parts:
+    if part.text is not None:
+        print(part.text)
+    elif part.inline_data is not None:
+        image = Image.open(BytesIO(part.inline_data.data))
+        image.save("generated_image.png")
+
+```
+
 **说明：**
 - OpenAI 端点返回 OpenAI 兼容格式
 - Gemini 端点返回 Gemini 原生格式
@@ -768,19 +824,6 @@ curl -X POST "http://127.0.0.1:7861/v1/models/gemini-2.5-pro:streamGenerateConte
 export COMPATIBILITY_MODE=true
 ```
 此模式下，所有 `system` 消息会转换为 `user` 消息，提高与某些客户端的兼容性。
-
----
-
-## 故障排除
-
-**400 错误解决方案**
-```bash
-npx https://github.com/google-gemini/gemini-cli
-```
-1. 选择选项 1
-2. 按回车确认
-3. 完成浏览器中的 Google 账户认证
-4. 系统将自动完成授权
 
 ---
 

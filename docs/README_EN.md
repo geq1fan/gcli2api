@@ -2,11 +2,16 @@
 
 **Convert GeminiCLI to OpenAI and GEMINI API interfaces**
 
+[![CI](https://github.com/su-kaka/gcli2api/workflows/CI/badge.svg)](https://github.com/su-kaka/gcli2api/actions)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: CNC-1.0](https://img.shields.io/badge/License-CNC--1.0-red.svg)](../LICENSE)
+[![Docker](https://img.shields.io/badge/docker-available-blue.svg)](https://github.com/su-kaka/gcli2api/pkgs/container/gcli2api)
+
 [中文](../README.md) | English
 
 ## 🚀 Quick Deploy
 
-[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/2QLQC2?referralCode=su-kaka)
+[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/97VMEF?referralCode=su-kaka)
 ---
 
 ## ⚠️ License Declaration
@@ -801,19 +806,6 @@ Response will include separated thinking content:
 export COMPATIBILITY_MODE=true
 ```
 In this mode, all `system` messages are converted to `user` messages, improving compatibility with certain clients.
-
----
-
-## Troubleshooting
-
-**400 Error Solutions**
-```bash
-npx https://github.com/google-gemini/gemini-cli
-```
-1. Select option 1
-2. Press Enter to confirm
-3. Complete Google account authentication in browser
-4. System will automatically complete authorization
 
 ---
 

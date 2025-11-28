@@ -1,16 +1,25 @@
-# 基础镜像
-FROM python:3.13-slim
+# Multi-stage build for gcli2api
+FROM python:3.13-slim as base
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
-# 仅复制依赖文件用于缓存层
+# Copy only requirements first for better caching
 COPY requirements.txt .
 
-# Python 依赖 
-RUN pip install -r requirements.txt
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制其余代码
+# Copy application code
 COPY . .
 
-# 默认启动命令
+# Expose port
+EXPOSE 7861
+
+# Default command
 CMD ["python", "web.py"]
